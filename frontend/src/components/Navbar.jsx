@@ -1,17 +1,21 @@
 import { useState } from "react";
 import { categories } from "../data/categories";
+import NotificationBell from "./NotificationBell";
 
 function Navbar({
   cartCount = 0,
   ordersCount = 0,
   user = null,
+  notifications = [],
   onOpenLogin,
   onLogout,
   onCartClick,
   onOpenOrders,
+  onOpenPharmacist,
   onOpenAdmin,
+  onOpenDelivery,
   onOpenLiveTracker,
-  activeOrder = null,
+  onMarkAllNotificationsRead,
   searchTerm = "",
   setSearchTerm,
   selectedCategory = "All",
@@ -43,60 +47,92 @@ function Navbar({
     document.getElementById("medicines")?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const userRole = (user?.role || "CUSTOMER").toUpperCase();
+  const isAdmin = userRole === "ADMIN";
+  const isPharmacist = userRole === "PHARMACIST" || isAdmin;
+  const isDelivery = userRole === "DELIVERY" || isAdmin;
+
   return (
     <header className="sticky top-0 z-40 bg-white shadow-xs backdrop-blur-md">
       {/* 1. Main Navbar Row: Logo + Delivering To + Search Bar + Profile + Cart */}
       <nav className="border-b border-slate-200">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6 lg:px-8">
-          {/* Left: Brand Logo */}
-          <div className="flex items-center gap-4 shrink-0">
-            <a href="/" className="flex items-center gap-2.5 group">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-xl text-white shadow-md shadow-emerald-600/30 group-hover:scale-105 transition">
-                💊
+          {/* Left: Brand Logo & Pincode */}
+          <div className="flex items-center gap-3 sm:gap-6">
+            <a href="#" className="flex items-center gap-2.5 group">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white shadow-md shadow-emerald-600/25 group-hover:scale-105 transition">
+                <span className="text-xl font-black">⚡</span>
               </div>
               <div>
-                <h1 className="text-xl font-black tracking-tight text-slate-800 flex items-center gap-1">
-                  SV <span className="text-emerald-600">Care</span>
-                </h1>
-                <p className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-emerald-700">
-                  Global Pharmacy #1
-                </p>
+                <span className="text-lg font-black tracking-tight text-slate-900 block leading-none">
+                  SV CARE
+                </span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
+                  Global Pharmacy
+                </span>
               </div>
             </a>
 
-            {/* Delivering To Location Selector */}
-            <div className="hidden lg:flex items-center gap-2 rounded-2xl border border-emerald-100 bg-emerald-50/70 px-3 py-1.5 text-xs">
-              <span className="text-base">📍</span>
+            {/* Delivering in 15-30 Min Pill */}
+            <div className="hidden md:flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-1.5 text-xs">
+              <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
               <div>
-                <p className="text-[9px] font-bold text-slate-400 uppercase leading-none">Delivering to</p>
-                <button
-                  type="button"
-                  onClick={() => setIsEditingPin(true)}
-                  className="font-extrabold text-slate-800 hover:text-emerald-700 flex items-center gap-1 leading-tight"
-                >
-                  <span>{pincode}</span>
-                  <span className="text-[10px] text-emerald-600 underline font-semibold">Change</span>
-                </button>
+                <p className="text-[10px] font-bold text-slate-400 uppercase leading-none">
+                  Delivering to
+                </p>
+                {isEditingPin ? (
+                  <form onSubmit={handlePinSubmit} className="flex items-center gap-1 mt-0.5">
+                    <input
+                      type="text"
+                      maxLength={6}
+                      value={pinInput}
+                      onChange={(e) => setPinInput(e.target.value)}
+                      placeholder="PIN code"
+                      className="w-16 rounded border border-slate-300 px-1 py-0.5 text-xs font-mono font-bold"
+                      autoFocus
+                    />
+                    <button type="submit" className="text-[10px] font-bold text-emerald-600">
+                      ✓
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingPin(false)}
+                      className="text-[10px] text-slate-400"
+                    >
+                      ✕
+                    </button>
+                  </form>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPinInput(pincode);
+                      setIsEditingPin(true);
+                    }}
+                    className="font-extrabold text-slate-800 hover:text-emerald-600 flex items-center gap-1"
+                  >
+                    <span>{pincode}</span>
+                    <span className="text-[10px] text-emerald-700 font-bold">({pinStatus})</span>
+                    <span className="text-[9px] text-slate-400">✏️</span>
+                  </button>
+                )}
               </div>
-              <span className="ml-1 rounded-full bg-emerald-200/70 px-2 py-0.5 text-[9px] font-bold text-emerald-800">
-                {pinStatus}
-              </span>
             </div>
           </div>
 
-          {/* Center: Search Bar directly after Delivering To (Zepto Style) */}
+          {/* Center: Search Bar */}
           {setSearchTerm && (
-            <div className="flex-1 max-w-2xl mx-1 sm:mx-3">
-              <div className="relative flex items-center">
-                <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-base text-slate-400">
+            <div className="flex-1 max-w-xl mx-2 sm:mx-4">
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">
                   🔍
                 </span>
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search for medicines, salt compositions, health needs (e.g. Dolo 650, Paracetamol, Metformin)..."
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50/90 py-2.5 pl-10 pr-24 text-xs font-semibold text-slate-800 shadow-xs outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
+                  placeholder="Search 40+ medicines, generic salts, pain relief, diabetes..."
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50/80 py-2.5 pl-10 pr-24 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-3 focus:ring-emerald-500/10 transition shadow-inner"
                 />
 
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
@@ -110,7 +146,6 @@ function Navbar({
                     </button>
                   )}
 
-                  {/* Compact Sort Selector */}
                   {setSortBy && (
                     <select
                       value={sortBy}
@@ -129,8 +164,14 @@ function Navbar({
             </div>
           )}
 
-          {/* Right: Login & Cart Actions */}
+          {/* Right: Notification Bell + User Login/Dropdown + Cart */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Notification Bell */}
+            <NotificationBell
+              notifications={notifications}
+              onMarkAllRead={onMarkAllNotificationsRead}
+            />
+
             {/* User Login / Profile Button */}
             {!user ? (
               <button
@@ -139,7 +180,7 @@ function Navbar({
                 className="flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-black text-slate-700 hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-800 transition active:scale-95 shadow-xs"
               >
                 <span className="text-sm">👤</span>
-                <span className="hidden sm:inline">Login</span>
+                <span className="hidden sm:inline">Member</span>
               </button>
             ) : (
               <div className="relative">
@@ -157,30 +198,24 @@ function Navbar({
 
                 {/* Dropdown Menu */}
                 {userDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl z-50 space-y-2 text-xs">
+                  <div className="absolute right-0 mt-2 w-64 rounded-3xl border border-slate-200 bg-white p-3.5 shadow-2xl z-50 space-y-2.5 text-xs">
                     <div className="border-b border-slate-100 pb-2">
-                      <p className="font-extrabold text-slate-800">{user.name}</p>
+                      <p className="font-extrabold text-slate-900">{user.name}</p>
                       <p className="text-[11px] text-slate-500 font-mono">{user.phone}</p>
-                      <span className="inline-block mt-1 rounded bg-emerald-100 px-2 py-0.5 text-[9px] font-black text-emerald-800">
-                        🛡️ Verified Patient
+                      <span className="inline-block mt-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[9px] font-black text-emerald-800">
+                        {isAdmin ? "🛡️ Super Admin" : isPharmacist ? "👨‍⚕️ Licensed Pharmacist" : isDelivery ? "🛵 Express Rider" : "🛡️ Verified Patient"}
                       </span>
                     </div>
 
-                    <div className="space-y-1 text-slate-600 text-[11px]">
-                      <p className="font-bold text-slate-400 text-[10px] uppercase">Default Address</p>
-                      <p className="line-clamp-2 text-slate-700">
-                        {user.house}, {user.area}, {user.city} - {user.pincode}
-                      </p>
-                    </div>
-
-                    <div className="border-t border-slate-100 pt-2 space-y-1.5">
+                    <div className="space-y-1.5">
+                      {/* Customer Orders */}
                       <button
                         type="button"
                         onClick={() => {
                           setUserDropdownOpen(false);
                           if (onOpenOrders) onOpenOrders();
                         }}
-                        className="w-full flex items-center justify-between rounded-xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition"
+                        className="w-full flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800 hover:bg-slate-100 transition"
                       >
                         <span className="flex items-center gap-2">
                           <span>📦</span> My Orders
@@ -190,17 +225,45 @@ function Navbar({
                         </span>
                       </button>
 
-                      {/* Admin Option ONLY for authorized Admins */}
-                      {user && user.role === "admin" && onOpenAdmin && (
+                      {/* Delivery Rider Portal (Only for Delivery or Admin) */}
+                      {isDelivery && onOpenDelivery && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUserDropdownOpen(false);
+                            onOpenDelivery();
+                          }}
+                          className="w-full flex items-center gap-2 rounded-xl bg-teal-50 border border-teal-200 px-3 py-2 text-xs font-black text-teal-900 hover:bg-teal-100 transition"
+                        >
+                          <span>🛵</span> Delivery Fleet Portal
+                        </button>
+                      )}
+
+                      {/* Pharmacist Portal (Only for Pharmacists or Admin) */}
+                      {isPharmacist && onOpenPharmacist && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUserDropdownOpen(false);
+                            onOpenPharmacist();
+                          }}
+                          className="w-full flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-black text-emerald-900 hover:bg-emerald-100 transition"
+                        >
+                          <span>👨‍⚕️</span> Pharmacist Station
+                        </button>
+                      )}
+
+                      {/* Admin Portal (Only for Super Admin) */}
+                      {isAdmin && onOpenAdmin && (
                         <button
                           type="button"
                           onClick={() => {
                             setUserDropdownOpen(false);
                             onOpenAdmin();
                           }}
-                          className="w-full flex items-center gap-2 rounded-xl bg-amber-100/70 border border-amber-300 px-3 py-2 text-xs font-black text-amber-900 hover:bg-amber-200 transition"
+                          className="w-full flex items-center gap-2 rounded-xl bg-indigo-50 border border-indigo-200 px-3 py-2 text-xs font-black text-indigo-900 hover:bg-indigo-100 transition"
                         >
-                          <span>👨‍⚕️</span> Pharmacist Admin
+                          <span>🛡️</span> Store Admin Portal
                         </button>
                       )}
 
@@ -220,39 +283,11 @@ function Navbar({
               </div>
             )}
 
-            {/* Quick Orders Button if orders exist */}
-            {ordersCount > 0 && onOpenOrders && (
-              <button
-                type="button"
-                onClick={onOpenOrders}
-                className="hidden md:flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
-              >
-                <span>📦</span>
-                <span>Orders</span>
-                <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-black text-emerald-800">
-                  {ordersCount}
-                </span>
-              </button>
-            )}
-
-            {/* Pharmacist Admin Button ONLY for authorized Admins */}
-            {user && user.role === "admin" && onOpenAdmin && (
-              <button
-                type="button"
-                onClick={onOpenAdmin}
-                className="hidden xl:flex items-center gap-1.5 rounded-2xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-xs font-black text-amber-900 hover:bg-amber-100 transition shadow-2xs"
-                title="Pharmacist & Store Admin Command Center"
-              >
-                <span>👨‍⚕️</span>
-                <span>Admin</span>
-              </button>
-            )}
-
-            {/* Cart Button (Zepto Style) */}
+            {/* Cart Button */}
             <button
               type="button"
               onClick={onCartClick}
-              className="flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-xs font-extrabold text-white shadow-md shadow-emerald-600/25 hover:bg-emerald-700 active:scale-95 transition"
+              className="flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-xs font-extrabold text-white shadow-md shadow-emerald-600/25 hover:bg-emerald-700 active:scale-95 transition cursor-pointer"
             >
               <span className="text-sm sm:text-base">🛒</span>
               <span className="hidden sm:inline">My Cart</span>
@@ -264,7 +299,7 @@ function Navbar({
         </div>
       </nav>
 
-      {/* 2. Zepto-Style Clean Horizontal Category Bar (No quick symptoms, sleek tabs) */}
+      {/* 2. Horizontal Category Bar */}
       <div className="border-b border-slate-200 bg-white/95">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-1.5 overflow-x-auto py-1.5 no-scrollbar">
@@ -318,44 +353,6 @@ function Navbar({
           </div>
         </div>
       </div>
-
-      {/* Pincode Change Modal */}
-      {isEditingPin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
-            <h3 className="text-base font-extrabold text-slate-800">Check Delivery Serviceability</h3>
-            <p className="mt-1 text-xs text-slate-500">
-              Enter your 6-digit delivery PIN code to confirm 15-30 minute flash dispatch.
-            </p>
-            <form onSubmit={handlePinSubmit} className="mt-4 space-y-3">
-              <input
-                type="text"
-                maxLength={6}
-                value={pinInput}
-                onChange={(e) => setPinInput(e.target.value)}
-                placeholder="e.g. 500081, 110001, 560001"
-                className="w-full rounded-xl border border-slate-300 p-3 text-sm font-bold text-slate-800 outline-none focus:border-emerald-600"
-                autoFocus
-              />
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsEditingPin(false)}
-                  className="flex-1 rounded-xl border border-slate-300 py-2.5 text-xs font-bold text-slate-700"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 rounded-xl bg-emerald-600 py-2.5 text-xs font-extrabold text-white hover:bg-emerald-700"
-                >
-                  Verify PIN
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </header>
   );
 }

@@ -11,6 +11,7 @@ import ProductDetailModal from "./components/ProductDetailModal";
 import DeliveryTracker from "./components/DeliveryTracker";
 import PharmacistPortal from "./components/PharmacistPortal";
 import AdminPortal from "./components/AdminPortal";
+import DeliveryPortal from "./components/DeliveryPortal";
 import AuthModal from "./components/AuthModal";
 import MyOrdersModal from "./components/MyOrdersModal";
 import TaxInvoiceModal from "./components/TaxInvoiceModal";
@@ -23,6 +24,7 @@ import {
   ordersApi,
   inventoryApi,
   prescriptionsApi,
+  notificationsApi,
   adminApi,
 } from "./services/api";
 
@@ -172,9 +174,19 @@ function App() {
   const [activeTrackingOrderId, setActiveTrackingOrderId] = useState("SV894210");
   const [pharmacistPortalOpen, setPharmacistPortalOpen] = useState(false);
   const [adminPortalOpen, setAdminPortalOpen] = useState(false);
+  const [deliveryPortalOpen, setDeliveryPortalOpen] = useState(false);
   const [myOrdersModalOpen, setMyOrdersModalOpen] = useState(false);
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState(null);
   const [confirmedOrder, setConfirmedOrder] = useState(null);
+  const [notifications, setNotifications] = useState([
+    {
+      id: 1,
+      title: "Welcome to SV Care Pharmacy",
+      message: "Enjoy express 15-30 min cold-chain delivery on all authentic medicines.",
+      is_read: false,
+      created_at: new Date().toISOString(),
+    },
+  ]);
   const [toastMessage, setToastMessage] = useState("");
 
   const showToast = (msg) => {
@@ -199,7 +211,14 @@ function App() {
     setUser(null);
     setAdminPortalOpen(false);
     setPharmacistPortalOpen(false);
+    setDeliveryPortalOpen(false);
     showToast("Logged out successfully");
+  };
+
+  const handleMarkAllNotificationsRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    notificationsApi.markAllRead().catch(() => {});
+    showToast("All notifications marked as read");
   };
 
   // Secure Portal Access Triggers
@@ -217,6 +236,15 @@ function App() {
       setPharmacistPortalOpen(true);
     } else {
       showToast("Access Denied: Licensed Pharmacist credentials required.");
+      setAuthModalOpen(true);
+    }
+  };
+
+  const handleOpenDelivery = () => {
+    if (userRole === "DELIVERY" || isAdmin) {
+      setDeliveryPortalOpen(true);
+    } else {
+      showToast("Access Denied: Delivery Fleet Rider login required.");
       setAuthModalOpen(true);
     }
   };
@@ -677,13 +705,16 @@ function App() {
         cartCount={cartCount}
         ordersCount={orders.length}
         user={user}
+        notifications={notifications}
         onOpenLogin={() => setAuthModalOpen(true)}
         onLogout={handleLogout}
         onCartClick={() => setCartOpen(true)}
         onOpenOrders={() => setMyOrdersModalOpen(true)}
         onOpenPharmacist={handleOpenPharmacist}
         onOpenAdmin={handleOpenAdmin}
+        onOpenDelivery={handleOpenDelivery}
         onOpenLiveTracker={() => setLiveTrackerOpen(true)}
+        onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
         selectedCategory={selectedCategory}
@@ -790,7 +821,17 @@ function App() {
         />
       )}
 
-      {/* 6. My Orders History Modal */}
+      {/* 6. DELIVERY FLEET PORTAL (Accessible by role: DELIVERY or ADMIN) */}
+      {deliveryPortalOpen && (userRole === "DELIVERY" || isAdmin) && (
+        <DeliveryPortal
+          orders={orders}
+          user={user}
+          onUpdateDeliveryStatus={handleUpdateOrderStatus}
+          onClose={() => setDeliveryPortalOpen(false)}
+        />
+      )}
+
+      {/* 7. My Orders History Modal */}
       {myOrdersModalOpen && (
         <MyOrdersModal
           orders={orders}

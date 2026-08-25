@@ -14,7 +14,8 @@ from routes import (
     inventory,
     admin,
     prescriptions,
-    notifications
+    notifications,
+    deliveries
 )
 import orders
 
@@ -66,6 +67,7 @@ app.include_router(prescriptions.router)
 app.include_router(notifications.router)
 app.include_router(payments.router)
 app.include_router(admin.router)
+app.include_router(deliveries.router)
 
 
 # ============================================================
