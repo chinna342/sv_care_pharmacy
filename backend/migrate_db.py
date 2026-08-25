@@ -44,7 +44,11 @@ def run_migrations():
             ("user_id", "INTEGER REFERENCES users(id) ON DELETE SET NULL"),
             ("prescription_required", "BOOLEAN DEFAULT FALSE"),
             ("prescription_status", "VARCHAR(30) DEFAULT 'NOT_REQUIRED'"),
-            ("rejection_reason", "TEXT")
+            ("rejection_reason", "TEXT"),
+            ("payment_id", "VARCHAR(100)"),
+            ("payment_signature", "VARCHAR(255)"),
+            ("gateway_name", "VARCHAR(50) DEFAULT 'SV Care Gateway'"),
+            ("paid_at", "TIMESTAMP WITH TIME ZONE")
         ]
         for col, col_type in order_columns:
             try:
@@ -64,6 +68,18 @@ def run_migrations():
                 conn.commit()
             except Exception as err:
                 print(f"Notice on users.{col}: {err}")
+
+        # 5. Address table columns
+        address_columns = [
+            ("user_id", "INTEGER REFERENCES users(id) ON DELETE CASCADE"),
+            ("is_default", "BOOLEAN DEFAULT FALSE")
+        ]
+        for col, col_type in address_columns:
+            try:
+                conn.execute(text(f"ALTER TABLE addresses ADD COLUMN IF NOT EXISTS {col} {col_type};"))
+                conn.commit()
+            except Exception as err:
+                print(f"Notice on addresses.{col}: {err}")
 
         print("[MIGRATION] Migration finished successfully!")
 
