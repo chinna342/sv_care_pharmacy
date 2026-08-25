@@ -11,6 +11,8 @@ import ProductDetailModal from "./components/ProductDetailModal";
 import DeliveryTracker from "./components/DeliveryTracker";
 import AdminPortal from "./components/AdminPortal";
 import AuthModal from "./components/AuthModal";
+import MyOrdersModal from "./components/MyOrdersModal";
+import TaxInvoiceModal from "./components/TaxInvoiceModal";
 
 // Datasets
 import defaultProducts from "./data/products";
@@ -92,6 +94,8 @@ function App() {
   const [liveTrackerOpen, setLiveTrackerOpen] = useState(false);
   const [activeTrackingOrderId, setActiveTrackingOrderId] = useState("SV894210");
   const [adminPortalOpen, setAdminPortalOpen] = useState(false);
+  const [myOrdersModalOpen, setMyOrdersModalOpen] = useState(false);
+  const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState(null);
   const [confirmedOrder, setConfirmedOrder] = useState(null);
   const [orders, setOrders] = useState(() => {
     try {
@@ -296,10 +300,12 @@ function App() {
       <div className="min-h-screen bg-slate-50">
         <Navbar
           cartCount={0}
+          ordersCount={orders.length}
           user={user}
           onOpenLogin={() => setAuthModalOpen(true)}
           onLogout={handleLogout}
           onCartClick={() => setCartOpen(true)}
+          onOpenOrders={() => setMyOrdersModalOpen(true)}
           onOpenLiveTracker={() => setLiveTrackerOpen(true)}
           onOpenAdmin={() => setAdminPortalOpen(true)}
         />
@@ -376,7 +382,10 @@ function App() {
               </div>
               <button
                 type="button"
-                onClick={() => setLiveTrackerOpen(true)}
+                onClick={() => {
+                  setActiveTrackingOrderId(confirmedOrder.id);
+                  setLiveTrackerOpen(true);
+                }}
                 className="rounded-xl bg-white px-4 py-2.5 text-xs font-black text-emerald-800 shadow-md hover:bg-emerald-50 active:scale-95 transition shrink-0"
               >
                 🛰️ Live GPS Tracker
@@ -387,8 +396,8 @@ function App() {
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <button
                 type="button"
-                onClick={() => window.print()}
-                className="flex-1 rounded-2xl border border-slate-300 bg-white py-3.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                onClick={() => setSelectedInvoiceOrder(confirmedOrder)}
+                className="flex-1 rounded-2xl border border-slate-300 bg-white py-3.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
               >
                 🖨️ Print Digital Invoice & Receipt
               </button>
@@ -419,6 +428,34 @@ function App() {
             onClose={() => setLiveTrackerOpen(false)}
           />
         )}
+
+        {/* Official Tax Invoice Modal */}
+        {selectedInvoiceOrder && (
+          <TaxInvoiceModal
+            order={selectedInvoiceOrder}
+            onClose={() => setSelectedInvoiceOrder(null)}
+          />
+        )}
+
+        {/* My Orders Modal */}
+        {myOrdersModalOpen && (
+          <MyOrdersModal
+            orders={orders}
+            onClose={() => setMyOrdersModalOpen(false)}
+            onTrackOrder={(orderId) => {
+              setActiveTrackingOrderId(orderId);
+              setLiveTrackerOpen(true);
+              setMyOrdersModalOpen(false);
+            }}
+            onReorder={(order) => {
+              (order.items || []).forEach((item) => addToCart(item, item.quantity || 1));
+              setMyOrdersModalOpen(false);
+              setCartOpen(true);
+              showToast("Items added back to your cart!");
+            }}
+            onOpenInvoice={(order) => setSelectedInvoiceOrder(order)}
+          />
+        )}
       </div>
     );
   }
@@ -431,10 +468,12 @@ function App() {
       <div className="min-h-screen bg-slate-50">
         <Navbar
           cartCount={cartCount}
+          ordersCount={orders.length}
           user={user}
           onOpenLogin={() => setAuthModalOpen(true)}
           onLogout={handleLogout}
           onCartClick={() => setCartOpen(true)}
+          onOpenOrders={() => setMyOrdersModalOpen(true)}
           onOpenLiveTracker={() => setLiveTrackerOpen(true)}
           onOpenAdmin={() => setAdminPortalOpen(true)}
         />
@@ -467,10 +506,14 @@ function App() {
       {/* NAVBAR WITH INTEGRATED SEARCH & CATEGORY BAR */}
       <Navbar
         cartCount={cartCount}
+        ordersCount={orders.length}
         user={user}
         onOpenLogin={() => setAuthModalOpen(true)}
         onLogout={handleLogout}
         onCartClick={() => setCartOpen(true)}
+        onOpenOrders={() => setMyOrdersModalOpen(true)}
+        onOpenAdmin={() => setAdminPortalOpen(true)}
+        onOpenLiveTracker={() => setLiveTrackerOpen(true)}
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
         selectedCategory={selectedCategory}
@@ -559,11 +602,40 @@ function App() {
               prev.map((p) => (p.id === id ? { ...p, stock: newStock } : p))
             );
           }}
+          onOpenInvoice={(order) => setSelectedInvoiceOrder(order)}
           onClose={() => setAdminPortalOpen(false)}
         />
       )}
 
-      {/* 5. User Authentication & Login Modal */}
+      {/* 5. My Orders History Modal */}
+      {myOrdersModalOpen && (
+        <MyOrdersModal
+          orders={orders}
+          onClose={() => setMyOrdersModalOpen(false)}
+          onTrackOrder={(orderId) => {
+            setActiveTrackingOrderId(orderId);
+            setLiveTrackerOpen(true);
+            setMyOrdersModalOpen(false);
+          }}
+          onReorder={(order) => {
+            (order.items || []).forEach((item) => addToCart(item, item.quantity || 1));
+            setMyOrdersModalOpen(false);
+            setCartOpen(true);
+            showToast("Items added back to your cart!");
+          }}
+          onOpenInvoice={(order) => setSelectedInvoiceOrder(order)}
+        />
+      )}
+
+      {/* 6. Official Tax Invoice Modal */}
+      {selectedInvoiceOrder && (
+        <TaxInvoiceModal
+          order={selectedInvoiceOrder}
+          onClose={() => setSelectedInvoiceOrder(null)}
+        />
+      )}
+
+      {/* 7. User Authentication & Login Modal */}
       <AuthModal
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}

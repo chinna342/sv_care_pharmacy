@@ -3,10 +3,15 @@ import { categories } from "../data/categories";
 
 function Navbar({
   cartCount = 0,
+  ordersCount = 0,
   user = null,
   onOpenLogin,
   onLogout,
   onCartClick,
+  onOpenOrders,
+  onOpenAdmin,
+  onOpenLiveTracker,
+  activeOrder = null,
   searchTerm = "",
   setSearchTerm,
   selectedCategory = "All",
@@ -168,14 +173,41 @@ function Navbar({
                       </p>
                     </div>
 
-                    <div className="border-t border-slate-100 pt-2">
+                    <div className="border-t border-slate-100 pt-2 space-y-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUserDropdownOpen(false);
+                          if (onOpenOrders) onOpenOrders();
+                        }}
+                        className="w-full flex items-center justify-between rounded-xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition"
+                      >
+                        <span className="flex items-center gap-2">
+                          <span>📦</span> My Orders
+                        </span>
+                        <span className="rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] text-white">
+                          {ordersCount}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUserDropdownOpen(false);
+                          if (onOpenAdmin) onOpenAdmin();
+                        }}
+                        className="w-full flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-200 transition"
+                      >
+                        <span>👨‍⚕️</span> Pharmacist Admin
+                      </button>
+
                       <button
                         type="button"
                         onClick={() => {
                           setUserDropdownOpen(false);
                           onLogout();
                         }}
-                        className="w-full rounded-xl bg-red-50 py-2 text-center text-xs font-bold text-red-600 hover:bg-red-100 transition"
+                        className="w-full rounded-xl bg-red-50 py-2 text-center text-xs font-bold text-red-600 hover:bg-red-100 transition mt-1"
                       >
                         Sign Out
                       </button>
@@ -183,6 +215,34 @@ function Navbar({
                   </div>
                 )}
               </div>
+            )}
+
+            {/* Quick Orders Button if orders exist */}
+            {ordersCount > 0 && onOpenOrders && (
+              <button
+                type="button"
+                onClick={onOpenOrders}
+                className="hidden md:flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition shadow-2xs"
+              >
+                <span>📦</span>
+                <span>Orders</span>
+                <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-black text-emerald-800">
+                  {ordersCount}
+                </span>
+              </button>
+            )}
+
+            {/* Pharmacist Admin Quick Access */}
+            {onOpenAdmin && (
+              <button
+                type="button"
+                onClick={onOpenAdmin}
+                className="hidden xl:flex items-center gap-1.5 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-bold text-slate-600 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-200 transition"
+                title="Pharmacist & Store Admin Command Center"
+              >
+                <span>👨‍⚕️</span>
+                <span>Admin</span>
+              </button>
             )}
 
             {/* Cart Button (Zepto Style) */}
