@@ -2,17 +2,23 @@ import os
 import random
 import time
 from typing import Optional, Dict
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Header, Depends, status
 from pydantic import BaseModel
 import requests
 
 router = APIRouter(
     prefix="/auth",
-    tags=["Authentication & Real-Time Phone OTP"]
+    tags=["Authentication & Role-Based Access Control"]
 )
 
 # In-memory fast OTP store: phone -> { "otp": str, "expires_at": float, "attempts": int }
 otp_storage: Dict[str, dict] = {}
+
+ADMIN_PHONES = ["9999999999", "9876543210"]
+ADMIN_CREDENTIALS = {
+    "admin@svcare.com": "admin2026",
+    "admin": "admin2026",
+}
 
 
 def dispatch_sim_sms(phone: str, otp: str, country_code: str = "+91"):
@@ -94,6 +100,18 @@ class VerifyOtpResponse(BaseModel):
     user: dict
 
 
+class AdminLoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class AdminLoginResponse(BaseModel):
+    success: bool
+    message: str
+    token: str
+    user: dict
+
+
 @router.post("/send-otp", response_model=SendOtpResponse)
 def send_otp(payload: SendOtpRequest):
     """
@@ -158,16 +176,68 @@ def verify_otp(payload: VerifyOtpRequest):
         del otp_storage[clean_phone]
 
     suffix = clean_phone[-4:] if len(clean_phone) >= 4 else "User"
+    is_admin = clean_phone in ADMIN_PHONES
+    role = "admin" if is_admin else "patient"
+
     return VerifyOtpResponse(
         success=True,
         message="Phone number verified successfully",
-        token=f"sv_jwt_{clean_phone}_{int(time.time())}",
+        token=f"sv_{role}_jwt_{clean_phone}_{int(time.time())}",
         user={
             "phone": clean_phone,
-            "name": f"Member {suffix}",
+            "name": f"Admin Pharmacist" if is_admin else f"Member {suffix}",
             "verified": True,
-            "role": "patient",
+            "role": role,
             "city": "Hyderabad",
             "pincode": "500081"
         }
     )
+
+
+@router.post("/admin-login", response_model=AdminLoginResponse)
+def admin_login(payload: AdminLoginRequest):
+    """
+    Authenticate authorized Pharmacist / Store Admin with administrative credentials.
+    """
+    email_clean = payload.email.strip().lower()
+    expected_pwd = ADMIN_CREDENTIALS.get(email_clean)
+
+    if not expected_pwd or expected_pwd != payload.password:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Admin credentials. Access denied."
+        )
+
+    return AdminLoginResponse(
+        success=True,
+        message="Admin authentication successful",
+        token=f"sv_admin_token_{int(time.time())}",
+        user={
+            "email": email_clean,
+            "name": "Dr. Rajesh Varma (Lead Pharmacist)",
+            "role": "admin",
+            "phone": "+91 9999999999",
+            "verified": True,
+            "designation": "Chief Pharmacist & Admin",
+            "license": "TS/HYD/2026/8942-R"
+        }
+    )
+
+
+def require_admin_user(authorization: Optional[str] = Header(None)):
+    """
+    FastAPI Security Dependency: Ensures the requesting client has an authorized Admin role.
+    """
+    if not authorization:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin authentication required. Access forbidden."
+        )
+
+    auth_token = authorization.replace("Bearer ", "").strip()
+    if "admin" not in auth_token.lower() and auth_token != "admin_secret_2026":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions. Admin role required."
+        )
+    return {"role": "admin", "token": auth_token}

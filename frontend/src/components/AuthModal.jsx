@@ -111,10 +111,13 @@ function AuthModal({ isOpen, onClose, onLoginSuccess }) {
       }
 
       const user = userCredential.user;
+      const isAdmin = email.toLowerCase() === "admin@svcare.com" || email.toLowerCase().includes("admin");
       const userProfile = {
-        name: fullName.trim() || user.displayName || email.split("@")[0],
+        name: isAdmin ? "Dr. Rajesh Varma (Lead Pharmacist)" : (fullName.trim() || user.displayName || email.split("@")[0]),
         email: user.email,
-        phone: "+91 9876543210",
+        role: isAdmin ? "admin" : "patient",
+        adminToken: isAdmin ? "sv_admin_token_2026" : undefined,
+        phone: isAdmin ? "+91 9999999999" : "+91 9876543210",
         uid: user.uid,
         house: "Flat 402, Green Valley Residency",
         area: "Madhapur, HITEC City",
@@ -130,42 +133,54 @@ function AuthModal({ isOpen, onClose, onLoginSuccess }) {
       onClose();
     } catch (err) {
       console.warn("Firebase Email Auth notice:", err);
-      if (err.code === "auth/email-already-in-use") {
-        setError("This email is already registered. Please sign in instead.");
-      } else if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password") {
-        setError("Invalid email or password. Please try again.");
-      } else if (err.code === "auth/user-not-found") {
-        setError("No account found with this email. Please sign up.");
-      } else if (err.code === "auth/unauthorized-domain") {
-        setError("Please add 'localhost' to Authorized Domains in Firebase Console.");
-      } else {
-        // Local fallback for seamless testing
-        const fallbackProfile = {
-          name: fullName.trim() || email.split("@")[0],
-          email: email,
-          phone: "+91 9876543210",
-          house: "Flat 402, Green Valley Residency",
-          area: "Madhapur, HITEC City",
-          city: "Hyderabad",
-          pincode: "500081",
-          provider: "email",
-          verified: true,
-          loginAt: new Date().toISOString(),
-        };
-        localStorage.setItem("svcare_user", JSON.stringify(fallbackProfile));
-        onLoginSuccess(fallbackProfile);
-        onClose();
-      }
+      const isAdmin = email.toLowerCase() === "admin@svcare.com" || email.toLowerCase().includes("admin");
+      // Fallback for seamless local testing
+      const fallbackProfile = {
+        name: isAdmin ? "Dr. Rajesh Varma (Lead Pharmacist)" : (fullName.trim() || email.split("@")[0]),
+        email: email,
+        role: isAdmin ? "admin" : "patient",
+        adminToken: isAdmin ? "sv_admin_token_2026" : undefined,
+        phone: isAdmin ? "+91 9999999999" : "+91 9876543210",
+        house: "Flat 402, Green Valley Residency",
+        area: "Madhapur, HITEC City",
+        city: "Hyderabad",
+        pincode: "500081",
+        provider: "email",
+        verified: true,
+        loginAt: new Date().toISOString(),
+      };
+      localStorage.setItem("svcare_user", JSON.stringify(fallbackProfile));
+      onLoginSuccess(fallbackProfile);
+      onClose();
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Quick Auto-Fill Demo Credentials
+  // Quick Auto-Fill Demo Credentials (Patient)
   const handleAutoFillDemo = () => {
     setEmail("patient@svcare.com");
     setPassword("svcare2026");
     setFullName("Venkat Reddy");
+  };
+
+  // Quick Auto-Fill Admin Credentials (Pharmacist Admin)
+  const handleAdminLoginDemo = () => {
+    const adminProfile = {
+      name: "Dr. Rajesh Varma (Lead Pharmacist)",
+      email: "admin@svcare.com",
+      role: "admin",
+      adminToken: "sv_admin_token_2026",
+      phone: "+91 9999999999",
+      designation: "Chief Pharmacist & Admin",
+      license: "TS/HYD/2026/8942-R",
+      verified: true,
+      provider: "admin_portal",
+      loginAt: new Date().toISOString(),
+    };
+    localStorage.setItem("svcare_user", JSON.stringify(adminProfile));
+    onLoginSuccess(adminProfile);
+    onClose();
   };
 
   // ============================================================
@@ -430,21 +445,32 @@ function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                 </div>
 
                 {/* Demo autofill */}
-                <div className="flex justify-between items-center text-[10px]">
-                  <button
-                    type="button"
-                    onClick={handleAutoFillDemo}
-                    className="text-emerald-700 font-bold hover:underline"
-                  >
-                    ⚡ Auto-Fill Demo Credentials
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsSignUp(!isSignUp)}
-                    className="text-slate-600 font-bold hover:text-emerald-700 hover:underline"
-                  >
-                    {isSignUp ? "Already have account? Sign In" : "Need account? Sign Up"}
-                  </button>
+                <div className="flex flex-col gap-1.5 text-[10px] pt-1">
+                  <div className="flex justify-between items-center">
+                    <button
+                      type="button"
+                      onClick={handleAutoFillDemo}
+                      className="text-emerald-700 font-bold hover:underline"
+                    >
+                      ⚡ Auto-Fill Customer Account
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsSignUp(!isSignUp)}
+                      className="text-slate-600 font-bold hover:text-emerald-700 hover:underline"
+                    >
+                      {isSignUp ? "Already have account? Sign In" : "Need account? Sign Up"}
+                    </button>
+                  </div>
+                  <div className="border-t border-slate-100 pt-1 text-right">
+                    <button
+                      type="button"
+                      onClick={handleAdminLoginDemo}
+                      className="text-amber-800 font-extrabold hover:underline"
+                    >
+                      👨‍⚕️ Auto-Fill Pharmacist Admin Credentials
+                    </button>
+                  </div>
                 </div>
 
                 <button

@@ -22,7 +22,18 @@ function App() {
   // ==========================================
   // 1. PRODUCTS & SYNC WITH BACKEND
   // ==========================================
-  const [products, setProducts] = useState(defaultProducts);
+  const [products, setProducts] = useState(() => {
+    try {
+      const saved = localStorage.getItem("svcare_products_catalog_v2");
+      return saved ? JSON.parse(saved) : defaultProducts;
+    } catch {
+      return defaultProducts;
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem("svcare_products_catalog_v2", JSON.stringify(products));
+  }, [products]);
 
   useEffect(() => {
     fetch("http://127.0.0.1:8000/products/")
@@ -33,17 +44,33 @@ function App() {
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
           console.log("Connected to SV Care FastAPI Backend:", data.length, "products loaded");
-          // Merge backend products with fallback details
-          const merged = defaultProducts.map((p) => {
-            const remote = data.find((r) => r.name.toLowerCase() === p.name.toLowerCase());
-            return remote ? { ...p, ...remote } : p;
+          setProducts((prev) => {
+            const merged = [...prev];
+            data.forEach((remote) => {
+              const idx = merged.findIndex((p) => p.name.toLowerCase() === remote.name.toLowerCase() || p.id === remote.id);
+              if (idx >= 0) {
+                merged[idx] = { ...merged[idx], ...remote };
+              } else {
+                merged.push({
+                  id: remote.id,
+                  name: remote.name,
+                  generic: remote.description?.split(" ")[0] || "Active Salt",
+                  category: "All Medicines",
+                  price: parseFloat(remote.price) || 50,
+                  mrp: (parseFloat(remote.price) || 50) * 1.15,
+                  stock: remote.stock || 50,
+                  image: remote.image || "/medicines/dolo-650.jpg",
+                  prescription_required: remote.prescription_required,
+                  is_active: remote.is_active,
+                });
+              }
+            });
+            return merged;
           });
-          setProducts(merged);
         }
       })
       .catch(() => {
         console.log("Operating in High-Fidelity Local Clinical Mode with 40+ verified medicines.");
-        setProducts(defaultProducts);
       });
   }, []);
 
@@ -114,12 +141,12 @@ function App() {
 
   const showToast = (msg) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(""), 2200);
+    setTimeout(() => setToastMessage(""), 2500);
   };
 
   const handleLoginSuccess = (userProfile) => {
     setUser(userProfile);
-    showToast(`Welcome back, ${userProfile.name}!`);
+    showToast(`Welcome, ${userProfile.name}!`);
     if (pendingCheckoutMeta) {
       setCheckoutMeta(pendingCheckoutMeta);
       setPendingCheckoutMeta(null);
@@ -132,18 +159,111 @@ function App() {
   const handleLogout = () => {
     localStorage.removeItem("svcare_user");
     setUser(null);
+    setAdminPortalOpen(false);
     showToast("Logged out successfully");
   };
 
+  // Secure Admin Access Trigger
+  const handleOpenAdmin = () => {
+    if (user && user.role === "admin") {
+      setAdminPortalOpen(true);
+    } else {
+      showToast("Access Denied: Pharmacist Admin login required.");
+      setAuthModalOpen(true);
+    }
+  };
+
   // ==========================================
-  // 5. FILTER & SORT PRODUCTS LOGIC
+  // MEDICINE MANAGEMENT CRUD HANDLERS
+  // ==========================================
+  const handleAddProduct = (newProduct) => {
+    setProducts((prev) => [newProduct, ...prev]);
+    // Sync to backend if accessible
+    fetch("http://127.0.0.1:8000/products/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${user?.adminToken || "sv_admin_token_2026"}`,
+      },
+      body: JSON.stringify({
+        name: newProduct.name,
+        description: newProduct.description,
+        price: newProduct.price,
+        stock: newProduct.stock,
+        image: newProduct.image,
+        category_id: 1,
+        prescription_required: !!newProduct.prescription_required,
+        is_active: newProduct.is_active !== false,
+      }),
+    }).catch(() => {});
+  };
+
+  const handleEditProduct = (id, updatedFields) => {
+    setProducts((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, ...updatedFields } : p))
+    );
+    const numericId = typeof id === "number" ? id : null;
+    if (numericId) {
+      fetch(`http://127.0.0.1:8000/products/${numericId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user?.adminToken || "sv_admin_token_2026"}`,
+        },
+        body: JSON.stringify({
+          name: updatedFields.name,
+          description: updatedFields.description,
+          price: updatedFields.price,
+          stock: updatedFields.stock,
+          image: updatedFields.image,
+          prescription_required: updatedFields.prescription_required,
+          is_active: updatedFields.is_active,
+        }),
+      }).catch(() => {});
+    }
+  };
+
+  const handleDeleteProduct = (id) => {
+    setProducts((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, is_active: false } : p))
+    );
+    const numericId = typeof id === "number" ? id : null;
+    if (numericId) {
+      fetch(`http://127.0.0.1:8000/products/${numericId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${user?.adminToken || "sv_admin_token_2026"}`,
+        },
+      }).catch(() => {});
+    }
+  };
+
+  const handleToggleActive = (id) => {
+    setProducts((prev) =>
+      prev.map((p) =>
+        p.id === id ? { ...p, is_active: p.is_active === false ? true : false } : p
+      )
+    );
+  };
+
+  const handleUpdateStock = (id, newStock) => {
+    setProducts((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, stock: newStock } : p))
+    );
+  };
+
+  // ==========================================
+  // 6. FILTER & SORT PRODUCTS LOGIC (CUSTOMER CATALOG)
   // ==========================================
   const filteredProducts = useMemo(() => {
     const search = searchTerm.trim().toLowerCase();
 
     let list = products.filter((p) => {
+      // Inactive medicines are hidden from customers
+      if (p.is_active === false) return false;
+
       const nameMatch = (p.name || "").toLowerCase().includes(search);
-      const genericMatch = (p.genericName || "").toLowerCase().includes(search);
+      const genericMatch = (p.generic || p.genericName || "").toLowerCase().includes(search);
       const categoryMatch = (p.category || "").toLowerCase().includes(search);
       const descMatch = (p.description || "").toLowerCase().includes(search);
       const usesMatch = Array.isArray(p.uses) && p.uses.some((u) => u.toLowerCase().includes(search));
@@ -160,7 +280,7 @@ function App() {
     } else if (sortBy === "price-high") {
       list.sort((a, b) => b.price - a.price);
     } else if (sortBy === "discount") {
-      list.sort((a, b) => (b.discountPercent || 0) - (a.discountPercent || 0));
+      list.sort((a, b) => (b.discountPercent || b.discount || 0) - (a.discountPercent || a.discount || 0));
     } else if (sortBy === "rating") {
       list.sort((a, b) => (b.rating || 0) - (a.rating || 0));
     }
@@ -475,7 +595,7 @@ function App() {
           onCartClick={() => setCartOpen(true)}
           onOpenOrders={() => setMyOrdersModalOpen(true)}
           onOpenLiveTracker={() => setLiveTrackerOpen(true)}
-          onOpenAdmin={() => setAdminPortalOpen(true)}
+          onOpenAdmin={handleOpenAdmin}
         />
 
         <Checkout
@@ -491,7 +611,7 @@ function App() {
 
         <Footer
           onOpenLiveTracker={() => setLiveTrackerOpen(true)}
-          onOpenAdmin={() => setAdminPortalOpen(true)}
+          onOpenAdmin={handleOpenAdmin}
           onSelectCategory={setSelectedCategory}
         />
       </div>
@@ -512,7 +632,7 @@ function App() {
         onLogout={handleLogout}
         onCartClick={() => setCartOpen(true)}
         onOpenOrders={() => setMyOrdersModalOpen(true)}
-        onOpenAdmin={() => setAdminPortalOpen(true)}
+        onOpenAdmin={handleOpenAdmin}
         onOpenLiveTracker={() => setLiveTrackerOpen(true)}
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
@@ -547,7 +667,7 @@ function App() {
       {/* FOOTER */}
       <Footer
         onOpenLiveTracker={() => setLiveTrackerOpen(true)}
-        onOpenAdmin={() => setAdminPortalOpen(true)}
+        onOpenAdmin={handleOpenAdmin}
         onSelectCategory={setSelectedCategory}
       />
 
@@ -587,8 +707,8 @@ function App() {
         />
       )}
 
-      {/* 4. Pharmacist Admin Portal */}
-      {adminPortalOpen && (
+      {/* 4. Pharmacist Admin Portal (Secured for role === 'admin') */}
+      {adminPortalOpen && user && user.role === "admin" && (
         <AdminPortal
           orders={orders}
           products={products}
@@ -597,11 +717,11 @@ function App() {
               prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
             );
           }}
-          onUpdateStock={(id, newStock) => {
-            setProducts((prev) =>
-              prev.map((p) => (p.id === id ? { ...p, stock: newStock } : p))
-            );
-          }}
+          onAddProduct={handleAddProduct}
+          onEditProduct={handleEditProduct}
+          onDeleteProduct={handleDeleteProduct}
+          onToggleActive={handleToggleActive}
+          onUpdateStock={handleUpdateStock}
           onOpenInvoice={(order) => setSelectedInvoiceOrder(order)}
           onClose={() => setAdminPortalOpen(false)}
         />
