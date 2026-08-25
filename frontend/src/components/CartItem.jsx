@@ -10,8 +10,16 @@ function CartItem({
       <div className="flex gap-3">
 
         {/* Image */}
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-2xl">
-          💊
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-50 border border-slate-100 p-1">
+          {item.image ? (
+            <img
+              src={item.image}
+              alt={item.name}
+              className="h-full w-full object-cover rounded-lg"
+            />
+          ) : (
+            <span className="text-2xl">💊</span>
+          )}
         </div>
 
 

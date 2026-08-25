@@ -57,11 +57,19 @@ function ProductDetailModal({ product, onClose, onAddToCart }) {
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* Main Info */}
-          <div className="grid gap-6 md:grid-cols-[200px_1fr]">
+          <div className="grid gap-6 md:grid-cols-[220px_1fr]">
             {/* Image / Icon container */}
-            <div className="flex flex-col items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 p-6 border border-emerald-100 text-center">
-              <div className="flex h-24 w-24 items-center justify-center rounded-3xl bg-white text-6xl shadow-sm">
-                💊
+            <div className="flex flex-col items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 p-4 border border-emerald-100 text-center">
+              <div className="flex h-36 w-36 items-center justify-center overflow-hidden rounded-2xl bg-white p-2 shadow-sm">
+                {product.image ? (
+                  <img
+                    src={product.image}
+                    alt={product.name}
+                    className="h-full w-full object-cover rounded-xl"
+                  />
+                ) : (
+                  <span className="text-6xl">💊</span>
+                )}
               </div>
               <p className="mt-3 text-xs font-bold text-emerald-800">{product.form || "Tablet"}</p>
               <p className="text-[11px] text-slate-500">{product.packSize || "Standard Packaging"}</p>

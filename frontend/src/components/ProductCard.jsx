@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 function ProductCard({
   product,
   onAddToCart,
@@ -17,40 +19,62 @@ function ProductCard({
     stock = 50,
     prescriptionRequired,
     form = "Tablet",
+    image,
     genericSubstitute,
   } = product;
 
+  const [imgError, setImgError] = useState(false);
   const isOutOfStock = stock <= 0;
   const isInCart = cartQuantity > 0;
   const savings = mrp && mrp > price ? mrp - price : 0;
 
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs transition-all duration-200 hover:border-emerald-300 hover:shadow-md">
-      {/* 1. Compact Top Media Stage */}
-      <div className="relative flex h-32 w-full flex-col items-center justify-center bg-gradient-to-b from-slate-50 to-emerald-50/30 p-2.5">
-        {/* Floating Top Left Badge */}
+      {/* 1. Compact Top Media Stage with Real Photo */}
+      <div className="relative flex h-36 w-full flex-col items-center justify-center bg-gradient-to-b from-slate-50 to-emerald-50/20 p-2 overflow-hidden">
+        {/* Floating Top Left Discount Badge */}
         <div className="absolute left-2.5 top-2.5 flex items-center gap-1 z-10">
           {discountPercent > 0 && (
             <span className="rounded-md bg-emerald-600 px-1.5 py-0.5 text-[9px] font-black text-white shadow-xs">
               {discountPercent}% OFF
             </span>
           )}
+          {prescriptionRequired && (
+            <span className="rounded-md bg-amber-500 px-1.5 py-0.5 text-[9px] font-black text-white shadow-xs">
+              Rx
+            </span>
+          )}
         </div>
 
         {/* Stock Badge Top Right */}
         {isOutOfStock && (
-          <span className="absolute right-2.5 top-2.5 rounded-md bg-red-100 px-1.5 py-0.5 text-[9px] font-bold text-red-700">
+          <span className="absolute right-2.5 top-2.5 rounded-md bg-red-100 px-1.5 py-0.5 text-[9px] font-bold text-red-700 z-10">
             Out of Stock
           </span>
         )}
 
-        {/* Medicine Thumbnail */}
-        <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-white text-3xl shadow-xs transition group-hover:scale-105">
-          💊
+        {/* Medicine Product Image */}
+        <div 
+          onClick={() => onOpenDetails && onOpenDetails(product)}
+          className="relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-2xl bg-white p-1 shadow-xs transition duration-300 group-hover:scale-105 cursor-pointer"
+        >
+          {image && !imgError ? (
+            <img
+              src={image}
+              alt={name}
+              loading="lazy"
+              onError={() => setImgError(true)}
+              className="h-full w-full object-cover rounded-xl transition duration-300 group-hover:brightness-105"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-emerald-50 text-3xl rounded-xl">
+              💊
+            </div>
+          )}
         </div>
 
         {/* Form/Pack Tag */}
-        <p className="mt-1 text-[10px] font-bold text-slate-400 truncate max-w-[90%]">
+        <p className="mt-1.5 text-[10px] font-bold text-slate-400 truncate max-w-[90%]">
           {form} • {category}
         </p>
       </div>
