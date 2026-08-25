@@ -33,16 +33,19 @@ router = APIRouter(
 # In-memory fast OTP store: phone -> { "otp": str, "expires_at": float, "attempts": int }
 otp_storage: Dict[str, dict] = {}
 
-ADMIN_PHONES = ["9999999999", "9876543210"]
+ADMIN_PHONES = ["6303180717", "9999999999"]
 PHARMACIST_PHONES = ["8888888888", "9123456789"]
 
 ADMIN_CREDENTIALS = {
-    "admin@svcare.com": "admin2026",
-    "admin": "admin2026",
+    "venkatc283@gmail.com": "955040",
+    "admin@svcare.com": "955040",
+    "admin": "955040",
+    "6303180717": "955040",
 }
 PHARMACIST_CREDENTIALS = {
-    "pharmacist@svcare.com": "rx2026",
-    "pharmacist": "rx2026",
+    "pharmacist@svcare.com": "955040",
+    "pharmacist": "955040",
+    "8888888888": "955040",
 }
 
 
@@ -137,7 +140,7 @@ def verify_otp(
     record = otp_storage.get(clean_phone)
 
     is_valid = False
-    if payload.otp == "123456":
+    if payload.otp in ["123456", "955040"]:
         is_valid = True
     elif record and record.get("otp") == payload.otp:
         if time.time() > record["expires_at"]:
@@ -161,16 +164,23 @@ def verify_otp(
 
     # Determine default role based on phone list
     inferred_role = "CUSTOMER"
-    if clean_phone in ADMIN_PHONES:
+    default_name = f"Member {clean_phone[-4:] if len(clean_phone) >= 4 else 'User'}"
+    default_email = None
+
+    if clean_phone in ADMIN_PHONES or clean_phone == "6303180717":
         inferred_role = "ADMIN"
+        default_name = "Chinna Venkatarao"
+        default_email = "venkatc283@gmail.com"
     elif clean_phone in PHARMACIST_PHONES:
         inferred_role = "PHARMACIST"
+        default_name = "Chinna Venkatarao (Lead Pharmacist)"
+        default_email = "pharmacist@svcare.com"
 
     if not user:
-        suffix = clean_phone[-4:] if len(clean_phone) >= 4 else "User"
         user = User(
             phone=clean_phone,
-            name="Pharmacist Admin" if inferred_role == "ADMIN" else f"Member {suffix}",
+            email=default_email,
+            name=default_name,
             role=inferred_role,
             is_active=True,
             is_verified=True
@@ -178,6 +188,13 @@ def verify_otp(
         db.add(user)
         db.commit()
         db.refresh(user)
+    else:
+        # Keep name and role updated for designated staff
+        if clean_phone in ["6303180717", "9999999999"] and user.role != "ADMIN":
+            user.role = "ADMIN"
+            user.name = "Chinna Venkatarao"
+            user.email = "venkatc283@gmail.com"
+            db.commit()
 
     # Issue cryptographic JWT
     token_payload = {
@@ -268,7 +285,7 @@ def admin_login(
     email_or_user = str(payload.get("email", "")).strip().lower()
     password = str(payload.get("password", "")).strip()
 
-    # 1. Check in hardcoded admin list
+    # 1. Check in configured staff list
     is_admin = False
     is_pharmacist = False
     if ADMIN_CREDENTIALS.get(email_or_user) == password:
@@ -276,16 +293,20 @@ def admin_login(
     elif PHARMACIST_CREDENTIALS.get(email_or_user) == password:
         is_pharmacist = True
     
-    # 2. Check in database users if not matched
+    # 2. Check in database users
     user = None
     if is_admin or is_pharmacist:
         role = "ADMIN" if is_admin else "PHARMACIST"
-        user = db.query(User).filter(User.role == role).first()
+        # 1. Search by exact email or phone first
+        user = db.query(User).filter((User.email == email_or_user) | (User.phone == email_or_user)).first()
+        if not user:
+            user = db.query(User).filter(User.role == role).first()
+
         if not user:
             user = User(
-                email=f"{role.lower()}@svcare.com",
-                phone="9999999999" if is_admin else "8888888888",
-                name="Dr. Rajesh Varma (Chief Pharmacist & Admin)" if is_admin else "Dr. Priya Sharma (Clinical Pharmacist)",
+                email="venkatc283@gmail.com" if is_admin else "pharmacist@svcare.com",
+                phone="6303180717" if is_admin else "8888888888",
+                name="Chinna Venkatarao" if is_admin else "Chinna Venkatarao (Lead Pharmacist)",
                 role=role,
                 is_active=True,
                 is_verified=True
@@ -293,6 +314,10 @@ def admin_login(
             db.add(user)
             db.commit()
             db.refresh(user)
+        else:
+            if is_admin and "Chinna Venkatarao" not in (user.name or ""):
+                user.name = "Chinna Venkatarao"
+                db.commit()
     else:
         # Check DB user by email/phone
         user = db.query(User).filter((User.email == email_or_user) | (User.phone == email_or_user)).first()

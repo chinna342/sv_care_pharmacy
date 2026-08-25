@@ -10,20 +10,20 @@ def seed_database():
         # 1. Seed Users
         users_to_seed = [
             {
-                "phone": "9999999999",
-                "email": "admin@svcare.com",
-                "name": "Dr. Rajesh Varma (Chief Admin & Pharmacist)",
+                "phone": "6303180717",
+                "email": "venkatc283@gmail.com",
+                "name": "Chinna Venkatarao",
                 "role": "ADMIN",
-                "password_hash": hash_password("admin2026"),
+                "password_hash": hash_password("955040"),
                 "is_active": True,
                 "is_verified": True
             },
             {
                 "phone": "8888888888",
                 "email": "pharmacist@svcare.com",
-                "name": "Dr. Priya Sharma (Lead Clinical Pharmacist)",
+                "name": "Chinna Venkatarao (Lead Pharmacist)",
                 "role": "PHARMACIST",
-                "password_hash": hash_password("rx2026"),
+                "password_hash": hash_password("955040"),
                 "is_active": True,
                 "is_verified": True
             },
@@ -60,6 +60,13 @@ def seed_database():
                 elif u.role == "DELIVERY":
                     db.add(DeliveryProfile(user_id=u.id, vehicle_number="TS-09-EV-8942"))
                 print(f"[SEEDED USER] {u_data['role']}: {u_data['email']} ({u_data['phone']})")
+            else:
+                existing.name = u_data["name"]
+                existing.role = u_data["role"]
+                existing.password_hash = u_data["password_hash"]
+                existing.email = u_data["email"]
+                existing.phone = u_data["phone"]
+                print(f"[UPDATED USER] {u_data['role']}: {u_data['name']} ({u_data['email']} / {u_data['phone']})")
 
         # 2. Ensure Inventory for all existing products
         products = db.query(Product).all()

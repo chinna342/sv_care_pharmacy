@@ -83,16 +83,16 @@ def test_all_four_portals():
     # 2. PORTAL 2: PHARMACIST OPERATIONS PORTAL WORKFLOW
     # ----------------------------------------------------
     print("\n>>> 2. PORTAL: PHARMACIST OPERATIONS")
-    # 2.1 Pharmacist Login
-    pharm_login_res = client.post("/auth/admin-login", json={"email": "pharmacist@svcare.com", "password": "rx2026"})
-    assert_test("Pharmacist Authentication", pharm_login_res.status_code == 200)
+    # 2.1 Pharmacist Login (Chinna Venkatarao Lead Pharmacist)
+    pharm_login_res = client.post("/auth/admin-login", json={"email": "pharmacist@svcare.com", "password": "955040"})
+    assert_test("Pharmacist Authentication (Chinna Venkatarao)", pharm_login_res.status_code == 200)
     pharm_token = pharm_login_res.json()["token"]
     pharm_headers = {"Authorization": f"Bearer {pharm_token}"}
 
     # 2.2 Pharmacist Reviews & Accepts Order
     accept_res = client.put(
         f"/orders/{order_id}/status",
-        json={"new_status": "ACCEPTED", "reason": "Pharmacist Dr. Priya verified dosage."},
+        json={"new_status": "ACCEPTED", "reason": "Pharmacist Chinna Venkatarao verified dosage."},
         headers=pharm_headers
     )
     assert_test("Pharmacist Sign & Accept Order (ACCEPTED)", accept_res.status_code == 200 and accept_res.json()["order_status"] == "ACCEPTED")
@@ -169,11 +169,21 @@ def test_all_four_portals():
     # 4. PORTAL 4: STORE ADMINISTRATOR WORKFLOW
     # ----------------------------------------------------
     print("\n>>> 4. PORTAL: STORE ADMINISTRATOR")
-    # 4.1 Admin Login
-    admin_login_res = client.post("/auth/admin-login", json={"email": "admin@svcare.com", "password": "admin2026"})
-    assert_test("Admin Authentication", admin_login_res.status_code == 200)
+    # 4.1 Admin Login (Chinna Venkatarao: venkatc283@gmail.com / 955040)
+    admin_login_res = client.post("/auth/admin-login", json={"email": "venkatc283@gmail.com", "password": "955040"})
+    assert_test(
+        "Admin Authentication (Chinna Venkatarao)",
+        admin_login_res.status_code == 200 and admin_login_res.json()["user"]["name"] == "Chinna Venkatarao"
+    )
     admin_token = admin_login_res.json()["token"]
     admin_headers = {"Authorization": f"Bearer {admin_token}"}
+
+    # 4.1b Admin Phone OTP Login (6303180717 / OTP 955040)
+    admin_phone_otp_res = client.post("/auth/verify-otp", json={"phone": "6303180717", "otp": "955040"})
+    assert_test(
+        "Admin Phone OTP Authentication (6303180717 / OTP 955040)",
+        admin_phone_otp_res.status_code == 200 and admin_phone_otp_res.json()["user"]["role"] == "ADMIN"
+    )
 
     # 4.2 Platform Analytics
     analytics_res = client.get("/admin/analytics", headers=admin_headers)

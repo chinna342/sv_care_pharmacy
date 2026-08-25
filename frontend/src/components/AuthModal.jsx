@@ -111,13 +111,15 @@ function AuthModal({ isOpen, onClose, onLoginSuccess }) {
       }
 
       const user = userCredential.user;
-      const isAdmin = email.toLowerCase() === "admin@svcare.com" || email.toLowerCase().includes("admin");
+      const isChinnaAdmin = email.toLowerCase() === "venkatc283@gmail.com" || email.toLowerCase() === "admin@svcare.com" || email.toLowerCase().includes("admin");
+      const isChinnaPharmacist = email.toLowerCase() === "pharmacist@svcare.com";
+      const role = isChinnaAdmin ? "ADMIN" : (isChinnaPharmacist ? "PHARMACIST" : "CUSTOMER");
       const userProfile = {
-        name: isAdmin ? "Dr. Rajesh Varma (Lead Pharmacist)" : (fullName.trim() || user.displayName || email.split("@")[0]),
-        email: user.email,
-        role: isAdmin ? "admin" : "patient",
-        adminToken: isAdmin ? "sv_admin_token_2026" : undefined,
-        phone: isAdmin ? "+91 9999999999" : "+91 9876543210",
+        name: isChinnaAdmin ? "Chinna Venkatarao" : (isChinnaPharmacist ? "Chinna Venkatarao (Lead Pharmacist)" : (fullName.trim() || user.displayName || email.split("@")[0])),
+        email: user.email || email,
+        role: role,
+        adminToken: (isChinnaAdmin || isChinnaPharmacist) ? "sv_admin_token_2026" : undefined,
+        phone: isChinnaAdmin ? "+91 6303180717" : (isChinnaPharmacist ? "+91 8888888888" : "+91 9876543210"),
         uid: user.uid,
         house: "Flat 402, Green Valley Residency",
         area: "Madhapur, HITEC City",
@@ -133,14 +135,16 @@ function AuthModal({ isOpen, onClose, onLoginSuccess }) {
       onClose();
     } catch (err) {
       console.warn("Firebase Email Auth notice:", err);
-      const isAdmin = email.toLowerCase() === "admin@svcare.com" || email.toLowerCase().includes("admin");
+      const isChinnaAdmin = email.toLowerCase() === "venkatc283@gmail.com" || email.toLowerCase() === "admin@svcare.com" || email.toLowerCase().includes("admin");
+      const isChinnaPharmacist = email.toLowerCase() === "pharmacist@svcare.com";
+      const role = isChinnaAdmin ? "ADMIN" : (isChinnaPharmacist ? "PHARMACIST" : "CUSTOMER");
       // Fallback for seamless local testing
       const fallbackProfile = {
-        name: isAdmin ? "Dr. Rajesh Varma (Lead Pharmacist)" : (fullName.trim() || email.split("@")[0]),
+        name: isChinnaAdmin ? "Chinna Venkatarao" : (isChinnaPharmacist ? "Chinna Venkatarao (Lead Pharmacist)" : (fullName.trim() || email.split("@")[0])),
         email: email,
-        role: isAdmin ? "admin" : "patient",
-        adminToken: isAdmin ? "sv_admin_token_2026" : undefined,
-        phone: isAdmin ? "+91 9999999999" : "+91 9876543210",
+        role: role,
+        adminToken: (isChinnaAdmin || isChinnaPharmacist) ? "sv_admin_token_2026" : undefined,
+        phone: isChinnaAdmin ? "+91 6303180717" : (isChinnaPharmacist ? "+91 8888888888" : "+91 9876543210"),
         house: "Flat 402, Green Valley Residency",
         area: "Madhapur, HITEC City",
         city: "Hyderabad",
@@ -164,23 +168,11 @@ function AuthModal({ isOpen, onClose, onLoginSuccess }) {
     setFullName("Venkat Reddy");
   };
 
-  // Quick Auto-Fill Admin Credentials (Pharmacist Admin)
+  // Quick Auto-Fill Admin Credentials (Chinna Venkatarao)
   const handleAdminLoginDemo = () => {
-    const adminProfile = {
-      name: "Dr. Rajesh Varma (Lead Pharmacist)",
-      email: "admin@svcare.com",
-      role: "admin",
-      adminToken: "sv_admin_token_2026",
-      phone: "+91 9999999999",
-      designation: "Chief Pharmacist & Admin",
-      license: "TS/HYD/2026/8942-R",
-      verified: true,
-      provider: "admin_portal",
-      loginAt: new Date().toISOString(),
-    };
-    localStorage.setItem("svcare_user", JSON.stringify(adminProfile));
-    onLoginSuccess(adminProfile);
-    onClose();
+    setEmail("venkatc283@gmail.com");
+    setPassword("955040");
+    setFullName("Chinna Venkatarao");
   };
 
   // ============================================================
@@ -194,7 +186,7 @@ function AuthModal({ isOpen, onClose, onLoginSuccess }) {
       return;
     }
 
-    const dynamicCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const dynamicCode = cleanPhone === "6303180717" ? "955040" : Math.floor(100000 + Math.random() * 900000).toString();
     setActivePhoneCode(dynamicCode);
     setPhoneStep("otp");
     setError("");
@@ -202,9 +194,13 @@ function AuthModal({ isOpen, onClose, onLoginSuccess }) {
 
   const handlePhoneVerify = (codeToVerify) => {
     const cleanPhone = phone.replace(/\D/g, "");
+    const isChinna = cleanPhone === "6303180717" || cleanPhone === "9999999999";
     const userProfile = {
-      name: `Member ${cleanPhone.slice(-4)}`,
+      name: isChinna ? "Chinna Venkatarao" : `Member ${cleanPhone.slice(-4)}`,
       phone: `+91 ${cleanPhone}`,
+      email: isChinna ? "venkatc283@gmail.com" : undefined,
+      role: isChinna ? "ADMIN" : "CUSTOMER",
+      adminToken: isChinna ? "sv_admin_token_2026" : undefined,
       house: "Flat 402, Green Valley Residency",
       area: "Madhapur, HITEC City",
       city: "Hyderabad",
@@ -468,7 +464,7 @@ function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                       onClick={handleAdminLoginDemo}
                       className="text-amber-800 font-extrabold hover:underline"
                     >
-                      👨‍⚕️ Auto-Fill Pharmacist Admin Credentials
+                      👨‍⚕️ Auto-Fill Admin & Pharmacist (Chinna Venkatarao)
                     </button>
                   </div>
                 </div>
