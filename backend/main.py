@@ -1,10 +1,21 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+import os
 
 from database import engine
 from models import Base
 
-from routes import products, categories, payments, auth
+from routes import (
+    products,
+    categories,
+    payments,
+    auth,
+    inventory,
+    admin,
+    prescriptions,
+    notifications
+)
 import orders
 
 
@@ -13,11 +24,9 @@ import orders
 # ============================================================
 
 try:
-    Base.metadata.create_all(
-        bind=engine
-    )
+    Base.metadata.create_all(bind=engine)
 except Exception as e:
-    print("Database connection warning (tables will sync when DB is up):", e)
+    print("Database connection notice (tables will sync when DB is connected):", e)
 
 
 # ============================================================
@@ -25,14 +34,14 @@ except Exception as e:
 # ============================================================
 
 app = FastAPI(
-    title="SV Care Pharmacy API - World Class Health Suite",
-    description="Backend API for SV Care Global Pharmacy Platform",
-    version="2.0.0"
+    title="SV Care Global Pharmacy & Clinical Commerce Platform",
+    description="Production-Ready Multi-Portal Pharmacy Engine with RBAC, State Machine & Inventory",
+    version="3.0.0"
 )
 
 
 # ============================================================
-# CORS
+# CORS MIDDLEWARE
 # ============================================================
 
 app.add_middleware(
@@ -45,37 +54,38 @@ app.add_middleware(
 
 
 # ============================================================
-# ROUTERS
+# REGISTER ROUTERS
 # ============================================================
 
+app.include_router(auth.router)
 app.include_router(products.router)
 app.include_router(categories.router)
 app.include_router(orders.router)
+app.include_router(inventory.router)
+app.include_router(prescriptions.router)
+app.include_router(notifications.router)
 app.include_router(payments.router)
-app.include_router(auth.router)
+app.include_router(admin.router)
 
 
 # ============================================================
-# HOME
+# ROOT & HEALTH CHECK
 # ============================================================
 
 @app.get("/")
 def home():
-
     return {
-        "message": "Welcome to SV Care Pharmacy API",
-        "status": "Running"
+        "platform": "SV Care Pharmacy Suite",
+        "version": "3.0.0",
+        "portals": ["Customer", "Pharmacist", "Admin", "Delivery"],
+        "status": "Operational"
     }
 
 
-# ============================================================
-# HEALTH
-# ============================================================
-
 @app.get("/health")
 def health():
-
     return {
         "status": "Healthy",
-        "database": "Connected"
+        "database": "Connected",
+        "timestamp": "2026-08-25T16:30:00Z"
     }

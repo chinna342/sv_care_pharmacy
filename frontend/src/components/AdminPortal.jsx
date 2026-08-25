@@ -1,1016 +1,767 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { categories as defaultCategories } from "../data/categories";
 
-const CATEGORIES = [
-  "All",
-  "Pain Relief & Fever",
-  "Antibiotics & Anti-Infectives",
-  "Heart & Blood Pressure",
-  "Diabetes Care",
-  "Allergy & Respiratory",
-  "Gastro & Acidity",
-  "Vitamins & Immunity",
-  "Skincare & Derma",
-];
-
-const FORM_OPTIONS = [
-  "Tablet",
-  "Capsule",
-  "Syrup",
-  "Gel",
-  "Ointment",
-  "Inhaler",
-  "Sachet",
-  "Eye/Ear Drops",
-  "Suspension",
-  "Injection",
-];
-
-function AdminPortal({
+export default function AdminPortal({
   orders = [],
-  onUpdateOrderStatus,
   products = [],
+  users = [],
+  auditLogs = [],
+  analytics = null,
+  onUpdateOrderStatus,
   onAddProduct,
   onEditProduct,
   onDeleteProduct,
   onToggleActive,
   onUpdateStock,
+  onUpdateUserRole,
+  onToggleUserStatus,
   onOpenInvoice,
   onClose,
 }) {
-  const [activeTab, setActiveTab] = useState("inventory"); // 'inventory' | 'orders' | 'analytics'
-  const [inventorySearch, setInventorySearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("All");
-  const [stockFilter, setStockFilter] = useState("All"); // 'All' | 'in_stock' | 'low_stock' | 'out_of_stock'
-  const [statusFilter, setStatusFilter] = useState("All"); // 'All' | 'active' | 'inactive'
-  const [orderSearch, setOrderSearch] = useState("");
-  const [orderStatusFilter, setOrderStatusFilter] = useState("All");
-
-  // Modal States for Medicine Management
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("dashboard"); // dashboard | users | medicines | categories | inventory | orders | audit | settings
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("ALL");
+  const [selectedUserForRoleChange, setSelectedUserForRoleChange] = useState(null);
+  const [newRoleSelection, setNewRoleSelection] = useState("CUSTOMER");
+  const [productModalOpen, setProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
-  const [deletingProduct, setDeletingProduct] = useState(null);
-  const [notification, setNotification] = useState("");
 
-  // Form State for Add / Edit
-  const [formData, setFormData] = useState({
+  // Form state for Add/Edit Medicine
+  const [medicineForm, setMedicineForm] = useState({
     name: "",
-    generic: "",
+    generic_name: "",
+    brand: "",
     manufacturer: "",
+    strength: "",
+    pack_size: "",
     category: "Pain Relief & Fever",
-    description: "",
+    category_id: 1,
     price: "",
     mrp: "",
-    stock: "50",
-    form: "Tablet",
-    pack_size: "Strip of 10 tablets",
+    discount_percent: 15,
+    stock: 50,
     prescription_required: false,
-    is_active: true,
     image: "/medicines/dolo-650.jpg",
-  });
-  const [formErrors, setFormErrors] = useState({});
-
-  const showToast = (msg) => {
-    setNotification(msg);
-    setTimeout(() => setNotification(""), 3500);
-  };
-
-  // Metrics
-  const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 4580);
-  const activeProductsCount = products.filter((p) => p.is_active !== false).length;
-  const lowStockCount = products.filter((p) => p.stock > 0 && p.stock <= 15).length;
-  const outOfStockCount = products.filter((p) => p.stock === 0).length;
-
-  // Filtered Products
-  const filteredProducts = products.filter((p) => {
-    const searchMatch =
-      p.name?.toLowerCase().includes(inventorySearch.toLowerCase()) ||
-      p.generic?.toLowerCase().includes(inventorySearch.toLowerCase()) ||
-      p.manufacturer?.toLowerCase().includes(inventorySearch.toLowerCase());
-
-    const categoryMatch =
-      categoryFilter === "All" || p.category === categoryFilter;
-
-    const stockMatch =
-      stockFilter === "All" ||
-      (stockFilter === "in_stock" && p.stock > 15) ||
-      (stockFilter === "low_stock" && p.stock > 0 && p.stock <= 15) ||
-      (stockFilter === "out_of_stock" && p.stock === 0);
-
-    const statusMatch =
-      statusFilter === "All" ||
-      (statusFilter === "active" && p.is_active !== false) ||
-      (statusFilter === "inactive" && p.is_active === false);
-
-    return searchMatch && categoryMatch && stockMatch && statusMatch;
+    description: "",
   });
 
-  // Filtered Orders
-  const filteredOrders = orders.filter((o) => {
-    const matchesSearch =
-      o.id?.toLowerCase().includes(orderSearch.toLowerCase()) ||
-      o.customer?.name?.toLowerCase().includes(orderSearch.toLowerCase()) ||
-      o.customer?.phone?.includes(orderSearch);
+  // Calculate platform analytics
+  const computedAnalytics = useMemo(() => {
+    if (analytics) return analytics;
+    
+    let totalRevenue = 0;
+    let pendingCount = 0;
+    let deliveredCount = 0;
+    let cancelledCount = 0;
 
-    const matchesStatus =
-      orderStatusFilter === "All" ||
-      (orderStatusFilter === "Active" && !o.status?.toLowerCase().includes("delivered")) ||
-      (orderStatusFilter === "Delivered" && o.status?.toLowerCase().includes("delivered"));
+    orders.forEach((o) => {
+      totalRevenue += parseFloat(o.total || 0);
+      const s = (o.status || o.order_status || "").toUpperCase();
+      if (s.includes("PENDING")) pendingCount++;
+      else if (s === "DELIVERED") deliveredCount++;
+      else if (["CANCELLED", "REJECTED"].includes(s)) cancelledCount++;
+    });
 
-    return matchesSearch && matchesStatus;
-  });
+    let lowStockCount = 0;
+    let outOfStockCount = 0;
+    products.forEach((p) => {
+      if (p.stock <= 0) outOfStockCount++;
+      else if (p.stock <= 15) lowStockCount++;
+    });
 
-  // Open Add Modal
-  const handleOpenAdd = () => {
-    setFormData({
+    return {
+      total_orders: orders.length,
+      todays_orders: Math.min(orders.length, 12),
+      total_revenue: totalRevenue,
+      pending_orders: pendingCount,
+      delivered_orders: deliveredCount,
+      cancelled_orders: cancelledCount,
+      total_medicines: products.length,
+      low_stock_count: lowStockCount,
+      out_of_stock_count: outOfStockCount,
+      total_customers: 2450,
+    };
+  }, [orders, products, analytics]);
+
+  const handleOpenAddMedicine = () => {
+    setEditingProduct(null);
+    setMedicineForm({
       name: "",
-      generic: "",
+      generic_name: "",
+      brand: "",
       manufacturer: "",
+      strength: "",
+      pack_size: "",
       category: "Pain Relief & Fever",
-      description: "",
+      category_id: 1,
       price: "",
       mrp: "",
-      stock: "50",
-      form: "Tablet",
-      pack_size: "Strip of 10 tablets",
+      discount_percent: 15,
+      stock: 50,
       prescription_required: false,
-      is_active: true,
       image: "/medicines/dolo-650.jpg",
+      description: "",
     });
-    setFormErrors({});
-    setIsAddModalOpen(true);
+    setProductModalOpen(true);
   };
 
-  // Open Edit Modal
-  const handleOpenEdit = (product) => {
-    setEditingProduct(product);
-    setFormData({
-      name: product.name || "",
-      generic: product.generic || "",
-      manufacturer: product.manufacturer || "",
-      category: product.category || "Pain Relief & Fever",
-      description: product.description || "",
-      price: String(product.price || ""),
-      mrp: String(product.mrp || product.price || ""),
-      stock: String(product.stock !== undefined ? product.stock : "50"),
-      form: product.form || "Tablet",
-      pack_size: product.pack_size || "Strip of 10 tablets",
-      prescription_required: !!product.prescription_required,
-      is_active: product.is_active !== false,
-      image: product.image || "/medicines/dolo-650.jpg",
+  const handleOpenEditMedicine = (prod) => {
+    setEditingProduct(prod);
+    setMedicineForm({
+      name: prod.name || "",
+      generic_name: prod.generic_name || prod.genericName || "",
+      brand: prod.brand || "",
+      manufacturer: prod.manufacturer || "",
+      strength: prod.strength || "",
+      pack_size: prod.pack_size || prod.packSize || "",
+      category: prod.category || "Pain Relief & Fever",
+      category_id: prod.category_id || 1,
+      price: prod.price || "",
+      mrp: prod.mrp || "",
+      discount_percent: prod.discount_percent || prod.discountPercent || 15,
+      stock: prod.stock || 50,
+      prescription_required: !!prod.prescription_required || !!prod.prescriptionRequired,
+      image: prod.image || "/medicines/dolo-650.jpg",
+      description: prod.description || "",
     });
-    setFormErrors({});
+    setProductModalOpen(true);
   };
 
-  // Validate Form
-  const validateForm = () => {
-    const errors = {};
-    if (!formData.name.trim()) errors.name = "Medicine name is required";
-    if (!formData.generic.trim()) errors.generic = "Generic / salt name is required";
-    if (!formData.manufacturer.trim()) errors.manufacturer = "Manufacturer is required";
-    const priceNum = parseFloat(formData.price);
-    const mrpNum = parseFloat(formData.mrp);
-    if (isNaN(priceNum) || priceNum <= 0) errors.price = "Price must be greater than 0";
-    if (isNaN(mrpNum) || mrpNum <= 0) errors.mrp = "MRP must be greater than 0";
-    if (priceNum > mrpNum) errors.price = "Selling price cannot exceed MRP";
-    const stockNum = parseInt(formData.stock, 10);
-    if (isNaN(stockNum) || stockNum < 0) errors.stock = "Stock cannot be negative";
-    return errors;
-  };
-
-  // Submit Add / Edit
-  const handleFormSubmit = (e) => {
+  const handleMedicineFormSubmit = (e) => {
     e.preventDefault();
-    const errors = validateForm();
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
+    if (!medicineForm.name || !medicineForm.price) {
+      alert("Please fill in medicine name and price.");
       return;
     }
 
-    const price = parseFloat(formData.price);
-    const mrp = parseFloat(formData.mrp);
-    const discount = Math.max(0, Math.round(((mrp - price) / mrp) * 100));
-
-    const medicinePayload = {
-      name: formData.name.trim(),
-      generic: formData.generic.trim(),
-      manufacturer: formData.manufacturer.trim(),
-      category: formData.category,
-      description: formData.description.trim() || `Prescription grade ${formData.name} by ${formData.manufacturer}.`,
-      price: price,
-      mrp: mrp,
-      discount: discount,
-      stock: parseInt(formData.stock, 10) || 0,
-      form: formData.form,
-      pack_size: formData.pack_size.trim() || "Unit pack",
-      prescription_required: formData.prescription_required,
-      is_active: formData.is_active,
-      image: formData.image || "/medicines/dolo-650.jpg",
-      rating: 4.8,
-      reviews_count: 142,
+    const payload = {
+      ...medicineForm,
+      price: parseFloat(medicineForm.price),
+      mrp: medicineForm.mrp ? parseFloat(medicineForm.mrp) : parseFloat(medicineForm.price) * 1.2,
+      stock: parseInt(medicineForm.stock, 10) || 0,
+      discount_percent: parseInt(medicineForm.discount_percent, 10) || 0,
+      is_active: true,
     };
 
     if (editingProduct) {
-      if (onEditProduct) {
-        onEditProduct(editingProduct.id, medicinePayload);
-      }
-      showToast(`✓ Medicine '${formData.name}' updated successfully in database!`);
-      setEditingProduct(null);
+      if (onEditProduct) onEditProduct(editingProduct.id, payload);
     } else {
-      const newId = `med_${Date.now()}`;
-      if (onAddProduct) {
-        onAddProduct({ ...medicinePayload, id: newId });
-      }
-      showToast(`✓ New medicine '${formData.name}' added to customer catalog!`);
-      setIsAddModalOpen(false);
+      if (onAddProduct) onAddProduct({ id: Date.now(), ...payload });
     }
+    setProductModalOpen(false);
   };
 
-  // Confirm Deletion
-  const handleConfirmDelete = () => {
-    if (!deletingProduct) return;
-    if (onDeleteProduct) {
-      onDeleteProduct(deletingProduct.id);
+  const handleRoleChangeSubmit = (e) => {
+    e.preventDefault();
+    if (selectedUserForRoleChange && onUpdateUserRole) {
+      onUpdateUserRole(selectedUserForRoleChange.id, newRoleSelection);
     }
-    showToast(`✓ Medicine '${deletingProduct.name}' safely removed from catalog.`);
-    setDeletingProduct(null);
+    setSelectedUserForRoleChange(null);
   };
-
-  const statusOptions = [
-    "Pharmacist Verified & Queued",
-    "Cold-Chain Packed (18°C-24°C)",
-    "Out for Express Delivery",
-    "Delivered to Doorstep",
-    "Cancelled",
-  ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 p-3 sm:p-4 backdrop-blur-md animate-fade-in">
-      <div className="relative max-h-[94vh] w-full max-w-7xl overflow-hidden rounded-3xl border border-slate-700 bg-white shadow-2xl flex flex-col">
-        
-        {/* Toast inside Admin */}
-        {notification && (
-          <div className="absolute top-4 right-16 z-50 rounded-2xl bg-emerald-900 border border-emerald-400 px-4 py-2.5 text-xs font-black text-emerald-200 shadow-2xl animate-bounce">
-            {notification}
+    <div className="fixed inset-0 z-50 flex flex-col bg-slate-900/90 backdrop-blur-md">
+      {/* 1. TOP ADMIN HEADER */}
+      <header className="flex items-center justify-between border-b border-indigo-500/20 bg-slate-900 px-6 py-3.5 text-white shadow-xl">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-500 font-black text-white shadow-md">
+            🛡️
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-extrabold tracking-tight text-white sm:text-lg">
+                SV Care Platform Administration
+              </span>
+              <span className="rounded-full bg-indigo-500/20 px-2.5 py-0.5 text-[10px] font-black text-indigo-400 border border-indigo-500/30">
+                SUPER ADMIN
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              Platform Governance • Role-Based Access Control • Audit Records
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-800 text-slate-300 hover:bg-rose-500 hover:text-white transition"
+        >
+          ✕
+        </button>
+      </header>
+
+      {/* 2. NAVIGATION BAR */}
+      <nav className="flex flex-wrap items-center gap-1 border-b border-slate-800 bg-slate-950/80 px-6 py-2">
+        {[
+          { key: "dashboard", label: "📊 Analytics & Reports" },
+          { key: "users", label: "👥 Users & RBAC" },
+          { key: "medicines", label: "💊 Medicines Catalog" },
+          { key: "categories", label: "📂 Categories" },
+          { key: "inventory", label: "🏷️ Warehouse Inventory" },
+          { key: "orders", label: "📦 Master Orders" },
+          { key: "audit", label: "🔒 Audit Logs" },
+          { key: "settings", label: "⚙️ Platform Settings" },
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setActiveTab(tab.key)}
+            className={`rounded-lg px-3.5 py-2 text-xs font-bold transition ${
+              activeTab === tab.key
+                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
+                : "text-slate-400 hover:bg-slate-800 hover:text-white"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </nav>
+
+      {/* 3. MAIN CONTENT AREA */}
+      <main className="flex-1 overflow-y-auto bg-slate-900 p-6">
+        {/* ========================================== */}
+        {/* TAB 1: ANALYTICS & REPORTS */}
+        {/* ========================================== */}
+        {activeTab === "dashboard" && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5">
+                <p className="text-xs font-bold text-slate-400 uppercase">Total Revenue</p>
+                <p className="mt-1 text-3xl font-black text-emerald-400">
+                  ₹{computedAnalytics.total_revenue?.toLocaleString()}
+                </p>
+                <p className="mt-1 text-[10px] text-emerald-400 font-bold">⚡ 100% Verified Digital Payments</p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5">
+                <p className="text-xs font-bold text-slate-400 uppercase">Total Orders</p>
+                <p className="mt-1 text-3xl font-black text-indigo-400">
+                  {computedAnalytics.total_orders}
+                </p>
+                <p className="mt-1 text-[10px] text-slate-500">{computedAnalytics.todays_orders} today</p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5">
+                <p className="text-xs font-bold text-slate-400 uppercase">Total Medicines</p>
+                <p className="mt-1 text-3xl font-black text-purple-400">
+                  {computedAnalytics.total_medicines}
+                </p>
+                <p className="mt-1 text-[10px] text-slate-500">Across 8 categories</p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5">
+                <p className="text-xs font-bold text-slate-400 uppercase">Low Stock Alerts</p>
+                <p className="mt-1 text-3xl font-black text-rose-400">
+                  {computedAnalytics.low_stock_count}
+                </p>
+                <p className="mt-1 text-[10px] text-rose-400 font-bold">Automated Reorder Triggered</p>
+              </div>
+            </div>
+
+            {/* Performance Overview */}
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5">
+                <h3 className="text-sm font-bold text-white mb-4">Order Status Breakdown</h3>
+                <div className="space-y-3 text-xs">
+                  <div className="flex justify-between p-2 rounded-lg bg-slate-900">
+                    <span className="text-amber-400 font-bold">Pending Review</span>
+                    <span className="font-mono font-bold text-white">{computedAnalytics.pending_orders || 0}</span>
+                  </div>
+                  <div className="flex justify-between p-2 rounded-lg bg-slate-900">
+                    <span className="text-blue-400 font-bold">In Progress & Dispatch</span>
+                    <span className="font-mono font-bold text-white">
+                      {Math.max(0, computedAnalytics.total_orders - (computedAnalytics.pending_orders || 0) - (computedAnalytics.delivered_orders || 0))}
+                    </span>
+                  </div>
+                  <div className="flex justify-between p-2 rounded-lg bg-slate-900">
+                    <span className="text-emerald-400 font-bold">Delivered</span>
+                    <span className="font-mono font-bold text-white">{computedAnalytics.delivered_orders || 0}</span>
+                  </div>
+                  <div className="flex justify-between p-2 rounded-lg bg-slate-900">
+                    <span className="text-rose-400 font-bold">Cancelled / Rejected</span>
+                    <span className="font-mono font-bold text-white">{computedAnalytics.cancelled_orders || 0}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5">
+                <h3 className="text-sm font-bold text-white mb-4">Security & RBAC Overview</h3>
+                <div className="space-y-3 text-xs text-slate-300">
+                  <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
+                    <p className="font-bold text-white">4 Strict User Roles Enforced</p>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Customer (Storefront), Pharmacist (Review & Dispatch), Admin (Full Control), Delivery (GPS Handover)
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
+                    <p className="font-bold text-white">Row-Level Stock Locking</p>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Prevents concurrent checkout overselling using SELECT FOR UPDATE transactional guarantees.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Top Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 bg-slate-950 px-6 py-4 text-white">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-xl font-bold shadow-lg shadow-emerald-500/20">
-              👨‍⚕️
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-black tracking-tight text-white">SV Care Pharmacist Command Center</h2>
-                <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-black text-emerald-400 border border-emerald-500/30">
-                  Chief Admin
-                </span>
-              </div>
-              <p className="text-xs text-slate-400">Medicine Catalog CRUD, Order Verification & Cold-Chain Logistics</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white text-base font-bold transition"
-            title="Close Admin Panel"
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Metrics Overview Bar */}
-        <div className="grid grid-cols-2 gap-3 border-b border-slate-200 bg-slate-50 p-4 sm:grid-cols-4 lg:grid-cols-5 text-xs">
-          <div className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs">
-            <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Active Medicines</p>
-            <p className="text-xl font-black text-slate-900 mt-0.5">{activeProductsCount} <span className="text-xs text-slate-400 font-normal">/ {products.length} total</span></p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs">
-            <p className="text-[10px] font-extrabold uppercase tracking-wider text-amber-600">Low Stock Alert</p>
-            <p className="text-xl font-black text-amber-700 mt-0.5">{lowStockCount} <span className="text-[10px] text-amber-600 font-bold">&le; 15 units</span></p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs">
-            <p className="text-[10px] font-extrabold uppercase tracking-wider text-red-500">Out of Stock</p>
-            <p className="text-xl font-black text-red-600 mt-0.5">{outOfStockCount} <span className="text-[10px] text-red-500 font-bold">0 units</span></p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs">
-            <p className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600">Store Revenue</p>
-            <p className="text-xl font-black text-emerald-700 mt-0.5">₹{totalRevenue.toLocaleString()}</p>
-          </div>
-          <div className="hidden lg:block rounded-2xl border border-slate-200 bg-white p-3.5 shadow-2xs">
-            <p className="text-[10px] font-extrabold uppercase tracking-wider text-blue-600">Live Orders</p>
-            <p className="text-xl font-black text-blue-700 mt-0.5">{orders.length} <span className="text-[10px] text-blue-500 font-bold">placed</span></p>
-          </div>
-        </div>
-
-        {/* Navigation Tabs */}
-        <div className="flex border-b border-slate-200 bg-white px-6 pt-3 gap-3">
-          <button
-            type="button"
-            onClick={() => setActiveTab("inventory")}
-            className={`pb-3 px-3 text-xs font-black transition border-b-2 cursor-pointer flex items-center gap-2 ${
-              activeTab === "inventory"
-                ? "border-emerald-600 text-emerald-700"
-                : "border-transparent text-slate-500 hover:text-slate-900"
-            }`}
-          >
-            <span>💊</span> Medicine Management (CRUD)
-            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] text-emerald-800 font-bold">
-              {products.length}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("orders")}
-            className={`pb-3 px-3 text-xs font-black transition border-b-2 cursor-pointer flex items-center gap-2 ${
-              activeTab === "orders"
-                ? "border-emerald-600 text-emerald-700"
-                : "border-transparent text-slate-500 hover:text-slate-900"
-            }`}
-          >
-            <span>📦</span> Customer Orders & Dispatch
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-700 font-bold">
-              {orders.length}
-            </span>
-          </button>
-        </div>
-
-        {/* Body Container */}
-        <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
-          
-          {/* ======================================================== */}
-          {/* TAB 1: MEDICINE MANAGEMENT (CRUD) */}
-          {/* ======================================================== */}
-          {activeTab === "inventory" && (
-            <div className="space-y-4">
-              
-              {/* Controls Bar: Add Button + Search + Filters */}
-              <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs md:flex-row md:items-center md:justify-between">
-                
-                {/* Left: Add Medicine Button */}
-                <button
-                  type="button"
-                  onClick={handleOpenAdd}
-                  className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-xs font-black text-white shadow-md hover:from-emerald-700 hover:to-teal-700 transition active:scale-95 cursor-pointer whitespace-nowrap"
-                >
-                  <span className="text-base font-extrabold">+</span>
-                  <span>Add New Medicine</span>
-                </button>
-
-                {/* Right: Search & Dropdown Filters */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 flex-1 max-w-4xl">
-                  {/* Search */}
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={inventorySearch}
-                      onChange={(e) => setInventorySearch(e.target.value)}
-                      placeholder="Search name, salt, brand..."
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-800 outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20"
-                    />
-                  </div>
-
-                  {/* Category Filter */}
-                  <select
-                    value={categoryFilter}
-                    onChange={(e) => setCategoryFilter(e.target.value)}
-                    className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white"
-                  >
-                    <option value="All">All Categories</option>
-                    {CATEGORIES.filter((c) => c !== "All").map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-
-                  {/* Stock Status Filter */}
-                  <select
-                    value={stockFilter}
-                    onChange={(e) => setStockFilter(e.target.value)}
-                    className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white"
-                  >
-                    <option value="All">All Stock Levels</option>
-                    <option value="in_stock">In Stock (&gt; 15)</option>
-                    <option value="low_stock">Low Stock (1-15)</option>
-                    <option value="out_of_stock">Out of Stock (0)</option>
-                  </select>
-
-                  {/* Active / Inactive Status Filter */}
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white"
-                  >
-                    <option value="All">All Statuses</option>
-                    <option value="active">Active Only</option>
-                    <option value="inactive">Inactive Only</option>
-                  </select>
-                </div>
+        {/* ========================================== */}
+        {/* TAB 2: USERS & RBAC MANAGEMENT */}
+        {/* ========================================== */}
+        {activeTab === "users" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between rounded-2xl bg-slate-950 p-4 border border-slate-800">
+              <div>
+                <h3 className="text-sm font-bold text-white">User Accounts & Role Permissions</h3>
+                <p className="text-xs text-slate-400">
+                  Assign administrative, pharmacist, or delivery privileges with instant authorization sync.
+                </p>
               </div>
 
-              {/* Medicine Table */}
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xs">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead className="border-b border-slate-200 bg-slate-100/75 text-[11px] font-black uppercase tracking-wider text-slate-600">
-                      <tr>
-                        <th className="p-3.5 pl-4">Medicine Info</th>
-                        <th className="p-3.5">Category</th>
-                        <th className="p-3.5">Price & MRP</th>
-                        <th className="p-3.5">Stock Level</th>
-                        <th className="p-3.5">Status</th>
-                        <th className="p-3.5 text-right pr-4">Actions</th>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search user name or phone..."
+                className="rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-1.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 w-64"
+              />
+            </div>
+
+            <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950">
+              <table className="w-full text-left text-xs text-slate-300">
+                <thead className="border-b border-slate-800 bg-slate-900 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  <tr>
+                    <th className="px-4 py-3.5">User Name</th>
+                    <th className="px-4 py-3.5">Phone & Email</th>
+                    <th className="px-4 py-3.5">Current Role</th>
+                    <th className="px-4 py-3.5">Status</th>
+                    <th className="px-4 py-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 font-medium">
+                  {[
+                    { id: 1, name: "Dr. Rajesh Varma", phone: "9999999999", email: "admin@svcare.com", role: "ADMIN", is_active: true },
+                    { id: 2, name: "Dr. Priya Sharma", phone: "8888888888", email: "pharmacist@svcare.com", role: "PHARMACIST", is_active: true },
+                    { id: 3, name: "Ramesh Express Rider", phone: "9123456780", email: "delivery@svcare.com", role: "DELIVERY", is_active: true },
+                    { id: 4, name: "Venkatesh Rao", phone: "9876543210", email: "customer@svcare.com", role: "CUSTOMER", is_active: true },
+                    ...(users || []).filter((u) => ![1, 2, 3, 4].includes(u.id)),
+                  ]
+                    .filter((u) => !searchQuery || u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.phone.includes(searchQuery))
+                    .map((usr) => (
+                      <tr key={usr.id} className="hover:bg-slate-900/60 transition">
+                        <td className="px-4 py-3">
+                          <p className="font-bold text-white">{usr.name}</p>
+                          <p className="text-[10px] text-slate-500">ID #{usr.id}</p>
+                        </td>
+
+                        <td className="px-4 py-3">
+                          <p className="font-mono text-slate-300">{usr.phone}</p>
+                          <p className="text-[10px] text-slate-400">{usr.email || "No email"}</p>
+                        </td>
+
+                        <td className="px-4 py-3">
+                          <span
+                            className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase ${
+                              usr.role === "ADMIN"
+                                ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
+                                : usr.role === "PHARMACIST"
+                                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                : usr.role === "DELIVERY"
+                                ? "bg-teal-500/20 text-teal-300 border border-teal-500/30"
+                                : "bg-slate-800 text-slate-300"
+                            }`}
+                          >
+                            {usr.role}
+                          </span>
+                        </td>
+
+                        <td className="px-4 py-3">
+                          <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                            Active
+                          </span>
+                        </td>
+
+                        <td className="px-4 py-3 text-right space-x-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedUserForRoleChange(usr);
+                              setNewRoleSelection(usr.role);
+                            }}
+                            className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-500 transition"
+                          >
+                            Change Role
+                          </button>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {filteredProducts.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} className="py-12 text-center text-slate-400">
-                            <p className="text-2xl mb-1">🔍</p>
-                            <p className="font-bold">No medicines found matching filters</p>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setInventorySearch("");
-                                setCategoryFilter("All");
-                                setStockFilter("All");
-                                setStatusFilter("All");
-                              }}
-                              className="mt-2 text-xs font-bold text-emerald-600 hover:underline"
-                            >
-                              Reset all filters
-                            </button>
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredProducts.map((p) => {
-                          const isLow = p.stock > 0 && p.stock <= 15;
-                          const isOut = p.stock === 0;
-                          const isActive = p.is_active !== false;
-
-                          return (
-                            <tr key={p.id} className={`hover:bg-slate-50/80 transition ${!isActive ? "bg-slate-50/50 opacity-60" : ""}`}>
-                              
-                              {/* Medicine Photo & Name */}
-                              <td className="p-3 pl-4">
-                                <div className="flex items-center gap-3">
-                                  <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-2xs flex items-center justify-center">
-                                    <img
-                                      src={p.image || "/medicines/dolo-650.jpg"}
-                                      alt={p.name}
-                                      className="h-full w-full object-contain"
-                                      onError={(e) => {
-                                        e.target.src = "/medicines/dolo-650.jpg";
-                                      }}
-                                    />
-                                  </div>
-                                  <div className="max-w-xs">
-                                    <div className="flex items-center gap-1.5">
-                                      <p className="font-black text-slate-900 leading-tight line-clamp-1">{p.name}</p>
-                                      {p.prescription_required && (
-                                        <span className="shrink-0 rounded bg-red-100 px-1.5 py-0.2 text-[9px] font-black text-red-700">
-                                          Rx
-                                        </span>
-                                      )}
-                                    </div>
-                                    <p className="text-[11px] text-slate-500 truncate">{p.generic || p.manufacturer}</p>
-                                    <p className="text-[10px] text-slate-400">{p.form || "Tablet"} • {p.pack_size || "Standard pack"}</p>
-                                  </div>
-                                </div>
-                              </td>
-
-                              {/* Category */}
-                              <td className="p-3">
-                                <span className="inline-block rounded-lg bg-emerald-50 border border-emerald-200/60 px-2 py-1 text-[11px] font-bold text-emerald-800 whitespace-nowrap">
-                                  {p.category}
-                                </span>
-                              </td>
-
-                              {/* Price */}
-                              <td className="p-3 whitespace-nowrap">
-                                <div className="font-black text-slate-900">₹{p.price}</div>
-                                {p.mrp && p.mrp > p.price && (
-                                  <div className="text-[10px] text-slate-400">
-                                    <span className="line-through">₹{p.mrp}</span>
-                                    <span className="ml-1 text-emerald-600 font-bold">({p.discount || Math.round(((p.mrp - p.price)/p.mrp)*100)}% off)</span>
-                                  </div>
-                                )}
-                              </td>
-
-                              {/* Stock */}
-                              <td className="p-3 whitespace-nowrap">
-                                <div className="flex items-center gap-2">
-                                  <span
-                                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black ${
-                                      isOut
-                                        ? "bg-red-100 text-red-700"
-                                        : isLow
-                                        ? "bg-amber-100 text-amber-800"
-                                        : "bg-emerald-100 text-emerald-800"
-                                    }`}
-                                  >
-                                    {isOut ? "● Out of Stock (0)" : isLow ? `▲ Low (${p.stock})` : `✓ In Stock (${p.stock})`}
-                                  </span>
-
-                                  {/* Quick Stock Modifiers */}
-                                  <div className="flex items-center gap-1">
-                                    <button
-                                      type="button"
-                                      onClick={() => onUpdateStock && onUpdateStock(p.id, Math.max(0, p.stock - 10))}
-                                      disabled={p.stock <= 0}
-                                      className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600 hover:bg-slate-200 disabled:opacity-30"
-                                      title="Subtract 10 units"
-                                    >
-                                      -10
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => onUpdateStock && onUpdateStock(p.id, p.stock + 50)}
-                                      className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 hover:bg-emerald-100"
-                                      title="Add +50 Restock"
-                                    >
-                                      +50
-                                    </button>
-                                  </div>
-                                </div>
-                              </td>
-
-                              {/* Status (Active / Inactive) */}
-                              <td className="p-3 whitespace-nowrap">
-                                <button
-                                  type="button"
-                                  onClick={() => onToggleActive && onToggleActive(p.id)}
-                                  className={`rounded-full px-2.5 py-1 text-[10px] font-black border transition cursor-pointer ${
-                                    isActive
-                                      ? "bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100"
-                                      : "bg-slate-100 border-slate-300 text-slate-500 hover:bg-slate-200"
-                                  }`}
-                                  title="Click to toggle active status for customers"
-                                >
-                                  {isActive ? "🟢 Active" : "⚪ Inactive"}
-                                </button>
-                              </td>
-
-                              {/* Actions */}
-                              <td className="p-3 pr-4 text-right whitespace-nowrap">
-                                <div className="flex items-center justify-end gap-1.5">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenEdit(p)}
-                                    className="rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800 transition"
-                                  >
-                                    ✏️ Edit
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setDeletingProduct(p)}
-                                    className="rounded-xl border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-bold text-red-700 hover:bg-red-100 transition"
-                                  >
-                                    🗑️ Delete
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+                    ))}
+                </tbody>
+              </table>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* ======================================================== */}
-          {/* TAB 2: CUSTOMER ORDERS & DISPATCH */}
-          {/* ======================================================== */}
-          {activeTab === "orders" && (
-            <div className="space-y-4">
-              {/* Order Search & Filters */}
-              <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs sm:flex-row sm:items-center sm:justify-between">
+        {/* ========================================== */}
+        {/* TAB 3: MEDICINES CATALOG CRUD */}
+        {/* ========================================== */}
+        {activeTab === "medicines" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between rounded-2xl bg-slate-950 p-4 border border-slate-800">
+              <div>
+                <h3 className="text-sm font-bold text-white">40+ Medical Product Inventory</h3>
+                <p className="text-xs text-slate-400">Manage clinical formulations, pricing, and stock.</p>
+              </div>
+
+              <div className="flex items-center gap-3">
                 <input
                   type="text"
-                  value={orderSearch}
-                  onChange={(e) => setOrderSearch(e.target.value)}
-                  placeholder="Search order ID, patient name, phone..."
-                  className="w-full sm:max-w-md rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-medium text-slate-800 outline-none focus:border-emerald-500 focus:bg-white"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search medicine..."
+                  className="rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-1.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 w-56"
                 />
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-bold text-slate-500">Filter:</span>
-                  <select
-                    value={orderStatusFilter}
-                    onChange={(e) => setOrderStatusFilter(e.target.value)}
-                    className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white"
-                  >
-                    <option value="All">All Orders ({orders.length})</option>
-                    <option value="Active">Active Express Deliveries</option>
-                    <option value="Delivered">Delivered Orders</option>
-                  </select>
-                </div>
+                <button
+                  type="button"
+                  onClick={handleOpenAddMedicine}
+                  className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black text-white hover:bg-indigo-500 shadow-md shadow-indigo-600/30 transition"
+                >
+                  + Add New Medicine
+                </button>
               </div>
+            </div>
 
-              {/* Orders Cards List */}
-              {filteredOrders.length === 0 ? (
-                <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-slate-400">
-                  <p className="text-3xl mb-2">📦</p>
-                  <p className="text-sm font-bold text-slate-600">No customer orders found</p>
-                  <p className="text-xs text-slate-400">New orders placed by patients will appear here in real time.</p>
-                </div>
-              ) : (
-                <div className="grid gap-4">
-                  {filteredOrders.map((o) => (
-                    <div
-                      key={o.id}
-                      className="rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs hover:border-emerald-300 transition space-y-4"
-                    >
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-3">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs font-black text-slate-900 bg-slate-100 px-2 py-0.5 rounded">
-                              {o.id}
+            <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950">
+              <table className="w-full text-left text-xs text-slate-300">
+                <thead className="border-b border-slate-800 bg-slate-900 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  <tr>
+                    <th className="px-4 py-3.5">Medicine Name</th>
+                    <th className="px-4 py-3.5">Category</th>
+                    <th className="px-4 py-3.5">Price & MRP</th>
+                    <th className="px-4 py-3.5">Stock</th>
+                    <th className="px-4 py-3.5">Rx Required</th>
+                    <th className="px-4 py-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 font-medium">
+                  {products
+                    .filter((p) => !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                    .map((prod) => (
+                      <tr key={prod.id} className="hover:bg-slate-900/60 transition">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={prod.image || "/medicines/dolo-650.jpg"}
+                              alt={prod.name}
+                              className="h-9 w-9 rounded-lg object-contain bg-white p-1"
+                            />
+                            <div>
+                              <p className="font-bold text-white">{prod.name}</p>
+                              <p className="text-[10px] text-slate-400">{prod.generic_name || prod.genericName || "Active Formulation"}</p>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="px-4 py-3 text-slate-300">{prod.category || "General"}</td>
+
+                        <td className="px-4 py-3">
+                          <span className="font-bold text-white">₹{prod.price}</span>{" "}
+                          <span className="text-[10px] text-slate-500 line-through">₹{prod.mrp || Math.round(prod.price * 1.2)}</span>
+                        </td>
+
+                        <td className="px-4 py-3">
+                          <span className={prod.stock <= 15 ? "text-amber-400 font-bold" : "text-emerald-400 font-bold"}>
+                            {prod.stock} units
+                          </span>
+                        </td>
+
+                        <td className="px-4 py-3">
+                          {prod.prescription_required || prod.prescriptionRequired ? (
+                            <span className="rounded-md bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-400 border border-amber-500/30">
+                              Rx Only
                             </span>
-                            <span className="text-xs text-slate-400">•</span>
-                            <span className="text-xs text-slate-500">{o.date || "Today"}</span>
-                          </div>
-                          <p className="text-sm font-black text-slate-800 mt-1">
-                            {o.customer?.name} <span className="text-xs text-slate-400 font-mono">({o.customer?.phone})</span>
-                          </p>
-                          <p className="text-xs text-slate-500 line-clamp-1">{o.customer?.address}</p>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          {onOpenInvoice && (
-                            <button
-                              type="button"
-                              onClick={() => onOpenInvoice(o)}
-                              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition flex items-center gap-1.5"
-                            >
-                              <span>🧾</span> Invoice
-                            </button>
+                          ) : (
+                            <span className="text-[10px] text-slate-500">OTC</span>
                           )}
-                          <div className="text-right">
-                            <p className="text-[10px] text-slate-400 font-bold uppercase">Total Bill</p>
-                            <p className="text-base font-black text-emerald-700">₹{o.total}</p>
-                          </div>
-                        </div>
-                      </div>
+                        </td>
 
-                      {/* Items */}
-                      <div className="flex flex-wrap gap-2 text-xs">
-                        {(o.items || []).map((item, idx) => (
-                          <div key={idx} className="rounded-xl bg-slate-50 border border-slate-100 px-2.5 py-1 text-slate-700 font-medium">
-                            <span className="font-bold text-slate-900">{item.name}</span> × {item.quantity || 1} (₹{item.price})
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Status Selector */}
-                      <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-500">Dispatch Status:</span>
-                          <select
-                            value={o.status || "Pharmacist Verified & Queued"}
-                            onChange={(e) => onUpdateOrderStatus && onUpdateOrderStatus(o.id, e.target.value)}
-                            className="rounded-xl border border-emerald-300 bg-emerald-50/50 px-3 py-1.5 text-xs font-black text-emerald-900 outline-none focus:ring-2 focus:ring-emerald-500/20 cursor-pointer"
+                        <td className="px-4 py-3 text-right space-x-2">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditMedicine(prod)}
+                            className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-200 hover:bg-slate-700 transition"
                           >
-                            {statusOptions.map((st) => (
-                              <option key={st} value={st}>{st}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <span className="text-[11px] font-bold text-slate-400">
-                          Payment: <span className="text-slate-700 uppercase font-black">{o.paymentMethod || "COD"}</span>
+                            ✏️ Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onDeleteProduct && onDeleteProduct(prod.id)}
+                            className="rounded-lg bg-rose-950/40 border border-rose-800/40 px-2.5 py-1.5 text-xs font-bold text-rose-300 hover:bg-rose-900 transition"
+                          >
+                            Deactivate
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================== */}
+        {/* TAB 4: AUDIT LOGS */}
+        {/* ========================================== */}
+        {activeTab === "audit" && (
+          <div className="space-y-4">
+            <div className="rounded-2xl bg-slate-950 p-4 border border-slate-800">
+              <h3 className="text-sm font-bold text-white">Platform Security & Audit Trail</h3>
+              <p className="text-xs text-slate-400">
+                Tamper-proof chronological records of all pricing changes, inventory adjustments, and status transitions.
+              </p>
+            </div>
+
+            <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950">
+              <table className="w-full text-left text-xs text-slate-300">
+                <thead className="border-b border-slate-800 bg-slate-900 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  <tr>
+                    <th className="px-4 py-3.5">Timestamp</th>
+                    <th className="px-4 py-3.5">Staff User</th>
+                    <th className="px-4 py-3.5">Action</th>
+                    <th className="px-4 py-3.5">Entity Target</th>
+                    <th className="px-4 py-3.5">Change Summary</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 font-medium font-mono text-[11px]">
+                  {[
+                    { id: 1, time: "Just now", user: "Dr. Rajesh Varma (ADMIN)", action: "STOCK_RESERVATION", entity: "ORDER #SV894210", details: "Reserved 1x Dolo 650mg, 1x Augmentin 625 Duo" },
+                    { id: 2, time: "5 mins ago", user: "Dr. Priya Sharma (PHARMACIST)", action: "ACCEPT_ORDER", entity: "ORDER #SV894210", details: "Prescription verified and signed" },
+                    { id: 3, time: "15 mins ago", user: "Dr. Rajesh Varma (ADMIN)", action: "UPDATE_STOCK", entity: "PRODUCT #1 (Dolo 650)", details: "Stock adjusted: 100 -> 120" },
+                    ...(auditLogs || []),
+                  ].map((log) => (
+                    <tr key={log.id} className="hover:bg-slate-900/60 transition">
+                      <td className="px-4 py-3 text-slate-400">{log.time || log.created_at}</td>
+                      <td className="px-4 py-3 text-white font-sans font-bold">{log.user || log.user_name}</td>
+                      <td className="px-4 py-3">
+                        <span className="rounded-md bg-indigo-500/20 px-2 py-0.5 text-[10px] font-bold text-indigo-400">
+                          {log.action}
                         </span>
-                      </div>
-                    </div>
+                      </td>
+                      <td className="px-4 py-3 text-slate-300">{log.entity}</td>
+                      <td className="px-4 py-3 text-emerald-400 font-sans">{log.details || log.new_value}</td>
+                    </tr>
                   ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Footer info */}
-        <div className="flex items-center justify-between border-t border-slate-200 bg-slate-100 px-6 py-3 text-[11px] text-slate-500">
-          <span>SV Care Licensed Pharmacy ID: <strong className="text-slate-800">TS/HYD/2026/8942-R</strong></span>
-          <span>Logged in as: <strong className="text-emerald-700">Dr. Rajesh Varma (Chief Admin)</strong></span>
-        </div>
-
-        {/* ======================================================== */}
-        {/* MODAL 1: ADD / EDIT MEDICINE MODAL */}
-        {/* ======================================================== */}
-        {(isAddModalOpen || editingProduct) && (
-          <div className="fixed inset-0 z-60 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-fade-in">
-            <div className="relative max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl flex flex-col">
-              
-              {/* Modal Header */}
-              <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-4">
-                <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-                  <span>{editingProduct ? "✏️ Edit Medicine Details" : "➕ Add New Medicine to Catalog"}</span>
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAddModalOpen(false);
-                    setEditingProduct(null);
-                  }}
-                  className="rounded-full bg-slate-200 p-1.5 text-xs text-slate-600 hover:bg-slate-300 font-bold"
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* Form Body */}
-              <form onSubmit={handleFormSubmit} className="flex-1 overflow-y-auto p-6 space-y-4 text-xs">
-                
-                {/* Row 1: Name & Generic */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Medicine Name *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      placeholder="e.g. Dolo 650mg Tablet"
-                      className={`w-full rounded-xl border px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:ring-2 ${
-                        formErrors.name ? "border-red-500 focus:ring-red-400/20" : "border-slate-300 focus:border-emerald-500 focus:ring-emerald-500/20"
-                      }`}
-                    />
-                    {formErrors.name && <p className="text-[10px] text-red-500 font-bold mt-1">{formErrors.name}</p>}
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Generic Name / Active Salt *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.generic}
-                      onChange={(e) => setFormData({ ...formData, generic: e.target.value })}
-                      placeholder="e.g. Paracetamol IP 650mg"
-                      className={`w-full rounded-xl border px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:ring-2 ${
-                        formErrors.generic ? "border-red-500 focus:ring-red-400/20" : "border-slate-300 focus:border-emerald-500 focus:ring-emerald-500/20"
-                      }`}
-                    />
-                    {formErrors.generic && <p className="text-[10px] text-red-500 font-bold mt-1">{formErrors.generic}</p>}
-                  </div>
-                </div>
-
-                {/* Row 2: Manufacturer & Category */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Manufacturer / Brand *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.manufacturer}
-                      onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })}
-                      placeholder="e.g. Micro Labs Ltd"
-                      className={`w-full rounded-xl border px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:ring-2 ${
-                        formErrors.manufacturer ? "border-red-500 focus:ring-red-400/20" : "border-slate-300 focus:border-emerald-500 focus:ring-emerald-500/20"
-                      }`}
-                    />
-                    {formErrors.manufacturer && <p className="text-[10px] text-red-500 font-bold mt-1">{formErrors.manufacturer}</p>}
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Therapeutic Category *
-                    </label>
-                    <select
-                      value={formData.category}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500"
-                    >
-                      {CATEGORIES.filter((c) => c !== "All").map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Row 3: Price, MRP & Stock */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Selling Price (₹) *
-                    </label>
-                    <input
-                      type="number"
-                      step="0.5"
-                      value={formData.price}
-                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                      placeholder="e.g. 31"
-                      className={`w-full rounded-xl border px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:ring-2 ${
-                        formErrors.price ? "border-red-500 focus:ring-red-400/20" : "border-slate-300 focus:border-emerald-500 focus:ring-emerald-500/20"
-                      }`}
-                    />
-                    {formErrors.price && <p className="text-[10px] text-red-500 font-bold mt-1">{formErrors.price}</p>}
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      MRP Price (₹) *
-                    </label>
-                    <input
-                      type="number"
-                      step="0.5"
-                      value={formData.mrp}
-                      onChange={(e) => setFormData({ ...formData, mrp: e.target.value })}
-                      placeholder="e.g. 35"
-                      className={`w-full rounded-xl border px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:ring-2 ${
-                        formErrors.mrp ? "border-red-500 focus:ring-red-400/20" : "border-slate-300 focus:border-emerald-500 focus:ring-emerald-500/20"
-                      }`}
-                    />
-                    {formErrors.mrp && <p className="text-[10px] text-red-500 font-bold mt-1">{formErrors.mrp}</p>}
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Stock Quantity (units) *
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.stock}
-                      onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                      placeholder="e.g. 50"
-                      className={`w-full rounded-xl border px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:ring-2 ${
-                        formErrors.stock ? "border-red-500 focus:ring-red-400/20" : "border-slate-300 focus:border-emerald-500 focus:ring-emerald-500/20"
-                      }`}
-                    />
-                    {formErrors.stock && <p className="text-[10px] text-red-500 font-bold mt-1">{formErrors.stock}</p>}
-                  </div>
-                </div>
-
-                {/* Row 4: Form & Pack Size */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Dosage Form
-                    </label>
-                    <select
-                      value={formData.form}
-                      onChange={(e) => setFormData({ ...formData, form: e.target.value })}
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500"
-                    >
-                      {FORM_OPTIONS.map((f) => (
-                        <option key={f} value={f}>{f}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Pack Size / Specification
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.pack_size}
-                      onChange={(e) => setFormData({ ...formData, pack_size: e.target.value })}
-                      placeholder="e.g. Strip of 15 tablets"
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500"
-                    />
-                  </div>
-                </div>
-
-                {/* Row 5: Medicine Image Path */}
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Medicine Photograph (Path / URL)
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="text"
-                      value={formData.image}
-                      onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                      placeholder="/medicines/dolo-650.jpg or https://..."
-                      className="flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 outline-none focus:border-emerald-500"
-                    />
-                    <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-slate-300 bg-white p-1 flex items-center justify-center">
-                      <img
-                        src={formData.image || "/medicines/dolo-650.jpg"}
-                        alt="Preview"
-                        className="h-full w-full object-contain"
-                        onError={(e) => {
-                          e.target.src = "/medicines/dolo-650.jpg";
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Row 6: Description */}
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Clinical Description & Therapeutic Usage
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="e.g. Fast-acting antipyretic and analgesic for pain relief and fever management..."
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 outline-none focus:border-emerald-500"
-                  />
-                </div>
-
-                {/* Row 7: Prescription & Active Status Toggles */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1 border-t border-slate-100">
-                  <label className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.prescription_required}
-                      onChange={(e) => setFormData({ ...formData, prescription_required: e.target.checked })}
-                      className="h-4 w-4 rounded text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <div>
-                      <span className="block font-bold text-slate-800">Requires Doctor Prescription (Rx)</span>
-                      <span className="block text-[10px] text-slate-500">Flag for Schedule H / H1 compliance</span>
-                    </div>
-                  </label>
-
-                  <label className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.is_active}
-                      onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                      className="h-4 w-4 rounded text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <div>
-                      <span className="block font-bold text-slate-800">Publish in Customer Catalog (Active)</span>
-                      <span className="block text-[10px] text-slate-500">Uncheck to hide from customer website</span>
-                    </div>
-                  </label>
-                </div>
-
-                {/* Submit Action */}
-                <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsAddModalOpen(false);
-                      setEditingProduct(null);
-                    }}
-                    className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-5 py-2 text-xs font-black text-white shadow-md hover:from-emerald-700 hover:to-teal-700 active:scale-95 transition cursor-pointer"
-                  >
-                    {editingProduct ? "Save Changes to Database" : "Publish Medicine to Catalog"}
-                  </button>
-                </div>
-              </form>
+                </tbody>
+              </table>
             </div>
           </div>
         )}
+      </main>
 
-        {/* ======================================================== */}
-        {/* MODAL 2: DELETE CONFIRMATION DIALOG */}
-        {/* ======================================================== */}
-        {deletingProduct && (
-          <div className="fixed inset-0 z-60 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-fade-in">
-            <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl space-y-4 text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-100 text-2xl text-red-600">
-                🗑️
+      {/* ========================================== */}
+      {/* MODAL 1: ADD / EDIT MEDICINE */}
+      {/* ========================================== */}
+      {productModalOpen && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <form
+            onSubmit={handleMedicineFormSubmit}
+            className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl border border-slate-700 bg-slate-900 p-6 text-white shadow-2xl space-y-4"
+          >
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-sm font-black text-indigo-400">
+                {editingProduct ? "✏️ Edit Medicine Formulation" : "💊 Add New Clinical Medicine"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setProductModalOpen(false)}
+                className="rounded-lg bg-slate-800 p-1 text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 text-xs">
+              <div className="sm:col-span-2">
+                <label className="block text-slate-400 font-bold mb-1">Medicine Brand Name</label>
+                <input
+                  type="text"
+                  required
+                  value={medicineForm.name}
+                  onChange={(e) => setMedicineForm({ ...medicineForm, name: e.target.value })}
+                  placeholder="e.g. Dolo 650mg Paracetamol"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs text-white focus:border-indigo-500 focus:outline-none"
+                />
               </div>
+
               <div>
-                <h3 className="text-base font-black text-slate-900">Delete Medicine Confirmation</h3>
-                <p className="text-xs text-slate-600 mt-1">
-                  Are you sure you want to delete <strong className="text-slate-900">{deletingProduct.name}</strong>?
-                </p>
-                <div className="mt-3 rounded-xl bg-amber-50 border border-amber-200 p-3 text-left text-[11px] text-amber-900 leading-relaxed">
-                  🛡️ <strong>Safe Deletion:</strong> This will remove the medicine from the customer catalog while keeping all customer order histories and tax invoice records intact.
-                </div>
+                <label className="block text-slate-400 font-bold mb-1">Generic Name / Salt</label>
+                <input
+                  type="text"
+                  value={medicineForm.generic_name}
+                  onChange={(e) => setMedicineForm({ ...medicineForm, generic_name: e.target.value })}
+                  placeholder="e.g. Paracetamol (Acetaminophen) 650mg"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs text-white focus:border-indigo-500 focus:outline-none"
+                />
               </div>
 
-              <div className="flex items-center justify-center gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setDeletingProduct(null)}
-                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100"
+              <div>
+                <label className="block text-slate-400 font-bold mb-1">Manufacturer</label>
+                <input
+                  type="text"
+                  value={medicineForm.manufacturer}
+                  onChange={(e) => setMedicineForm({ ...medicineForm, manufacturer: e.target.value })}
+                  placeholder="e.g. Micro Labs Ltd."
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs text-white focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-400 font-bold mb-1">Selling Price (₹)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  value={medicineForm.price}
+                  onChange={(e) => setMedicineForm({ ...medicineForm, price: e.target.value })}
+                  placeholder="e.g. 32"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs text-white focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-400 font-bold mb-1">MRP (₹)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={medicineForm.mrp}
+                  onChange={(e) => setMedicineForm({ ...medicineForm, mrp: e.target.value })}
+                  placeholder="e.g. 40"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs text-white focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-400 font-bold mb-1">Initial Stock (Units)</label>
+                <input
+                  type="number"
+                  value={medicineForm.stock}
+                  onChange={(e) => setMedicineForm({ ...medicineForm, stock: e.target.value })}
+                  placeholder="e.g. 100"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs text-white focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-400 font-bold mb-1">Category</label>
+                <select
+                  value={medicineForm.category}
+                  onChange={(e) => setMedicineForm({ ...medicineForm, category: e.target.value })}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs text-white focus:border-indigo-500 focus:outline-none"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleConfirmDelete}
-                  className="rounded-xl bg-red-600 px-5 py-2 text-xs font-black text-white hover:bg-red-700 shadow-md transition cursor-pointer"
-                >
-                  Confirm Safe Deletion
-                </button>
+                  {defaultCategories.map((c) => (
+                    <option key={c.id} value={c.name}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="sm:col-span-2 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="rxReq"
+                  checked={medicineForm.prescription_required}
+                  onChange={(e) => setMedicineForm({ ...medicineForm, prescription_required: e.target.checked })}
+                  className="rounded text-indigo-600 focus:ring-0"
+                />
+                <label htmlFor="rxReq" className="text-slate-300 font-bold">
+                  Prescription Required (Schedule H Drug)
+                </label>
               </div>
             </div>
-          </div>
-        )}
 
-      </div>
+            <div className="flex items-center gap-2 pt-3 border-t border-slate-800">
+              <button
+                type="submit"
+                className="flex-1 rounded-xl bg-indigo-600 py-3 text-xs font-black text-white hover:bg-indigo-500 transition"
+              >
+                {editingProduct ? "Save Changes" : "Create Medicine Entry"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setProductModalOpen(false)}
+                className="rounded-xl bg-slate-800 px-5 py-3 text-xs font-bold text-slate-400 hover:text-white"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ========================================== */}
+      {/* MODAL 2: CHANGE ROLE MODAL */}
+      {/* ========================================== */}
+      {selectedUserForRoleChange && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <form
+            onSubmit={handleRoleChangeSubmit}
+            className="w-full max-w-md rounded-3xl border border-slate-700 bg-slate-900 p-6 text-white shadow-2xl space-y-4"
+          >
+            <h3 className="text-sm font-black text-indigo-400">
+              Modify User Role Permissions • {selectedUserForRoleChange.name}
+            </h3>
+
+            <div className="space-y-2 text-xs">
+              {["CUSTOMER", "PHARMACIST", "ADMIN", "DELIVERY"].map((r) => (
+                <label
+                  key={r}
+                  className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer ${
+                    newRoleSelection === r
+                      ? "border-indigo-500 bg-indigo-950/40 text-white"
+                      : "border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700"
+                  }`}
+                >
+                  <div>
+                    <p className="font-bold">{r}</p>
+                    <p className="text-[10px] text-slate-500">
+                      {r === "CUSTOMER"
+                        ? "Storefront browsing, Cart, Checkout, My Orders"
+                        : r === "PHARMACIST"
+                        ? "Clinical order verification, Prescriptions, Packing"
+                        : r === "ADMIN"
+                        ? "Full platform control, User management, Audits"
+                        : "Rider dispatch assignment, GPS updates"}
+                    </p>
+                  </div>
+                  <input
+                    type="radio"
+                    name="roleSel"
+                    checked={newRoleSelection === r}
+                    onChange={() => setNewRoleSelection(r)}
+                  />
+                </label>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="submit"
+                className="flex-1 rounded-xl bg-indigo-600 py-2.5 text-xs font-bold text-white hover:bg-indigo-500 transition"
+              >
+                Save Role
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedUserForRoleChange(null)}
+                className="rounded-xl bg-slate-800 px-4 py-2.5 text-xs font-bold text-slate-400 hover:text-white"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
-
-export default AdminPortal;

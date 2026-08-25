@@ -5,3 +5,7 @@ pydantic
 python-dotenv
 requests
 psycopg2-binary
+pyjwt
+passlib[bcrypt]
+bcrypt
+python-multipart

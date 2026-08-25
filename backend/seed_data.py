@@ -88,7 +88,7 @@ def seed():
             ]
             db.add_all(sample_products)
             db.commit()
-            print(f"✅ Added {len(sample_products)} medicines to the database!")
+            print(f"[SUCCESS] Added {len(sample_products)} medicines to the database!")
         else:
             print(f"Database already populated with {existing_products} products.")
 
