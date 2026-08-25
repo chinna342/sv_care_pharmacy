@@ -60,12 +60,12 @@ function ProductDetailModal({ product, onClose, onAddToCart }) {
           <div className="grid gap-6 md:grid-cols-[220px_1fr]">
             {/* Image / Icon container */}
             <div className="flex flex-col items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 p-4 border border-emerald-100 text-center">
-              <div className="flex h-36 w-36 items-center justify-center overflow-hidden rounded-2xl bg-white p-2 shadow-sm">
+              <div className="flex h-44 w-44 items-center justify-center overflow-hidden rounded-2xl bg-white p-3 shadow-md border border-slate-100">
                 {product.image ? (
                   <img
                     src={product.image}
                     alt={product.name}
-                    className="h-full w-full object-cover rounded-xl"
+                    className="h-full w-full object-contain rounded-xl"
                   />
                 ) : (
                   <span className="text-6xl">💊</span>

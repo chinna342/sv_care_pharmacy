@@ -56,7 +56,7 @@ function ProductCard({
         {/* Medicine Product Image */}
         <div 
           onClick={() => onOpenDetails && onOpenDetails(product)}
-          className="relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-2xl bg-white p-1 shadow-xs transition duration-300 group-hover:scale-105 cursor-pointer"
+          className="relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-2xl bg-white p-1.5 shadow-xs border border-slate-100 transition duration-300 group-hover:scale-105 cursor-pointer"
         >
           {image && !imgError ? (
             <img
@@ -64,7 +64,7 @@ function ProductCard({
               alt={name}
               loading="lazy"
               onError={() => setImgError(true)}
-              className="h-full w-full object-cover rounded-xl transition duration-300 group-hover:brightness-105"
+              className="h-full w-full object-contain rounded-xl transition duration-300 group-hover:brightness-105"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-emerald-50 text-3xl rounded-xl">
