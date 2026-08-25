@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f0fdf4" />
+      <stop offset="100%" stop-color="#dcfce7" />
+    </linearGradient>
+
+    <!-- Metallic Foil Gradient -->
+    <linearGradient id="foilGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc" />
+      <stop offset="25%" stop-color="#e2e8f0" />
+      <stop offset="50%" stop-color="#cbd5e1" />
+      <stop offset="75%" stop-color="#f1f5f9" />
+      <stop offset="100%" stop-color="#94a3b8" />
+    </linearGradient>
+
+    <!-- Tube Gradient -->
+    <linearGradient id="tubeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#16a34a" />
+      <stop offset="60%" stop-color="#15803d" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+
+    <!-- Shadow -->
+    <filter id="dropShadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#0f172a" flood-opacity="0.12" />
+    </filter>
+
+    <filter id="subtleGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="15" result="blur" />
+    </filter>
+  </defs>
+
+  <!-- Background Canvas -->
+  <rect width="400" height="300" rx="24" fill="url(#bgGrad)" />
+
+  <!-- Background Decorative Medical Grid/Glow -->
+  <circle cx="200" cy="150" r="110" fill="#16a34a" opacity="0.08" filter="url(#subtleGlow)" />
+  <circle cx="360" cy="40" r="70" fill="#15803d" opacity="0.06" filter="url(#subtleGlow)" />
+
+  <!-- Top Banner / Prescription Badge -->
+  <g transform="translate(24, 24)">
+    <rect x="0" y="0" width="125" height="24" rx="8" fill="#059669" />
+    <text x="62.5" y="16" font-family="'Plus Jakarta Sans', Arial, sans-serif" font-weight="900" font-size="10" fill="#ffffff" text-anchor="middle" letter-spacing="0.5">
+      🟢 100% GENUINE
+    </text>
+  </g>
+
+  <!-- Top Right Pharma Category Badge -->
+  <g transform="translate(270, 24)">
+    <rect x="0" y="0" width="105" height="24" rx="8" fill="#ffffff" stroke="#e2e8f0" stroke-width="1" />
+    <text x="52.5" y="16" font-family="'Plus Jakarta Sans', Arial, sans-serif" font-weight="800" font-size="9" fill="#15803d" text-anchor="middle">
+      REGULAR
+    </text>
+  </g>
+
+  <!-- Center 3D Medicine Graphic Representation -->
+  
+      <!-- Bottle Mockup -->
+      <g transform="translate(150, 90)">
+        <!-- Cap -->
+        <rect x="30" y="0" width="40" height="22" rx="4" fill="#16a34a" filter="url(#dropShadow)" />
+        <rect x="35" y="20" width="30" height="8" fill="#cbd5e1" />
+        <!-- Body -->
+        <rect x="10" y="26" width="80" height="130" rx="16" fill="#ffffff" stroke="#cbd5e1" stroke-width="2" filter="url(#dropShadow)" />
+        <!-- Label -->
+        <rect x="14" y="50" width="72" height="75" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="1.5" />
+        <rect x="18" y="55" width="64" height="18" rx="4" fill="#16a34a" />
+        <text x="50" y="68" font-family="'Plus Jakarta Sans', Arial, sans-serif" font-weight="900" font-size="9" fill="#ffffff" text-anchor="middle">ENO</text>
+        <text x="50" y="85" font-family="'Plus Jakarta Sans', Arial, sans-serif" font-weight="700" font-size="7" fill="#64748b" text-anchor="middle">REGULAR 100g JAR</text>
+        <circle cx="50" cy="105" r="10" fill="#dcfce7" />
+        <text x="50" y="108" font-size="11" text-anchor="middle">🧪</text>
+      </g>
+    
+
+  <!-- Bottom Brand Card Stage -->
+  <g transform="translate(24, 215)">
+    <rect x="0" y="0" width="352" height="62" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" filter="url(#dropShadow)" />
+    
+    <!-- Accent Left Bar -->
+    <rect x="0" y="0" width="6" height="62" rx="3" fill="#16a34a" />
+
+    <!-- Brand Name -->
+    <text x="18" y="24" font-family="'Plus Jakarta Sans', Arial, sans-serif" font-weight="900" font-size="15" fill="#0f172a" letter-spacing="-0.3">
+      ENO FRUIT SALT
+    </text>
+
+    <!-- Active Salt Composition -->
+    <text x="18" y="40" font-family="'Plus Jakarta Sans', Arial, sans-serif" font-weight="700" font-size="10" fill="#16a34a">
+      🔬 Sodium Bicarbonate + Citric Acid
+    </text>
+
+    <!-- Manufacturer & Type -->
+    <text x="18" y="53" font-family="'Plus Jakarta Sans', Arial, sans-serif" font-weight="600" font-size="8.5" fill="#64748b">
+      GSK CONSUMER • REGULAR 100g JAR
+    </text>
+
+    <!-- Security Hologram Seal Icon -->
+    <g transform="translate(305, 12)">
+      <circle cx="18" cy="18" r="16" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5" />
+      <text x="18" y="23" font-size="16" text-anchor="middle">🛡️</text>
+    </g>
+  </g>
+</svg>

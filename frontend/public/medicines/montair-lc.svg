@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ecfeff" />
+      <stop offset="100%" stop-color="#cffafe" />
+    </linearGradient>
+
+    <!-- Metallic Foil Gradient -->
+    <linearGradient id="foilGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc" />
+      <stop offset="25%" stop-color="#e2e8f0" />
+      <stop offset="50%" stop-color="#cbd5e1" />
+      <stop offset="75%" stop-color="#f1f5f9" />
+      <stop offset="100%" stop-color="#94a3b8" />
+    </linearGradient>
+
+    <!-- Tube Gradient -->
+    <linearGradient id="tubeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0891b2" />
+      <stop offset="60%" stop-color="#0e7490" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+
+    <!-- Shadow -->
+    <filter id="dropShadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#0f172a" flood-opacity="0.12" />
+    </filter>
+
+    <filter id="subtleGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="15" result="blur" />
+    </filter>
+  </defs>
+
+  <!-- Background Canvas -->
+  <rect width="400" height="300" rx="24" fill="url(#bgGrad)" />
+
+  <!-- Background Decorative Medical Grid/Glow -->
+  <circle cx="200" cy="150" r="110" fill="#0891b2" opacity="0.08" filter="url(#subtleGlow)" />
+  <circle cx="360" cy="40" r="70" fill="#0e7490" opacity="0.06" filter="url(#subtleGlow)" />
+
+  <!-- Top Banner / Prescription Badge -->
+  <g transform="translate(24, 24)">
+    <rect x="0" y="0" width="80" height="24" rx="8" fill="#ef4444" />
+    <text x="40" y="16" font-family="'Plus Jakarta Sans', Arial, sans-serif" font-weight="900" font-size="10" fill="#ffffff" text-anchor="middle" letter-spacing="0.5">
+      🔴 Rx REQUIRED
+    </text>
+  </g>
+
+  <!-- Top Right Pharma Category Badge -->
+  <g transform="translate(270, 24)">
+    <rect x="0" y="0" width="105" height="24" rx="8" fill="#ffffff" stroke="#e2e8f0" stroke-width="1" />
+    <text x="52.5" y="16" font-family="'Plus Jakarta Sans', Arial, sans-serif" font-weight="800" font-size="9" fill="#0e7490" text-anchor="middle">
+      DUAL
+    </text>
+  </g>
+
+  <!-- Center 3D Medicine Graphic Representation -->
+  
+      <!-- Metallic Silver Blister Foil -->
+      <g transform="translate(0, 0)">
+        <rect x="90" y="80" width="220" height="110" rx="16" fill="url(#foilGrad)" stroke="#94a3b8" stroke-width="1.5" filter="url(#dropShadow)" />
+        <!-- Pockets Pattern -->
+        
+            <rect x="101" y="92" width="28" height="16" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" filter="url(#dropShadow)" />
+            <line x1="115" y1="93" x2="115" y2="107" stroke="#cbd5e1" stroke-width="1" />
+          
+            <rect x="136" y="92" width="28" height="16" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" filter="url(#dropShadow)" />
+            <line x1="150" y1="93" x2="150" y2="107" stroke="#cbd5e1" stroke-width="1" />
+          
+            <rect x="171" y="92" width="28" height="16" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" filter="url(#dropShadow)" />
+            <line x1="185" y1="93" x2="185" y2="107" stroke="#cbd5e1" stroke-width="1" />
+          
+            <rect x="206" y="92" width="28" height="16" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" filter="url(#dropShadow)" />
+            <line x1="220" y1="93" x2="220" y2="107" stroke="#cbd5e1" stroke-width="1" />
+          
+            <rect x="241" y="92" width="28" height="16" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" filter="url(#dropShadow)" />
+            <line x1="255" y1="93" x2="255" y2="107" stroke="#cbd5e1" stroke-width="1" />
+          
+            <rect x="101" y="127" width="28" height="16" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" filter="url(#dropShadow)" />
+            <line x1="115" y1="128" x2="115" y2="142" stroke="#cbd5e1" stroke-width="1" />
+          
+            <rect x="136" y="127" width="28" height="16" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" filter="url(#dropShadow)" />
+            <line x1="150" y1="128" x2="150" y2="142" stroke="#cbd5e1" stroke-width="1" />
+          
+            <rect x="171" y="127" width="28" height="16" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" filter="url(#dropShadow)" />
+            <line x1="185" y1="128" x2="185" y2="142" stroke="#cbd5e1" stroke-width="1" />
+          
+            <rect x="206" y="127" width="28" height="16" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" filter="url(#dropShadow)" />
+            <line x1="220" y1="128" x2="220" y2="142" stroke="#cbd5e1" stroke-width="1" />
+          
+            <rect x="241" y="127" width="28" height="16" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" filter="url(#dropShadow)" />
+            <line x1="255" y1="128" x2="255" y2="142" stroke="#cbd5e1" stroke-width="1" />
+          
+      </g>
+    
+
+  <!-- Bottom Brand Card Stage -->
+  <g transform="translate(24, 215)">
+    <rect x="0" y="0" width="352" height="62" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" filter="url(#dropShadow)" />
+    
+    <!-- Accent Left Bar -->
+    <rect x="0" y="0" width="6" height="62" rx="3" fill="#0891b2" />
+
+    <!-- Brand Name -->
+    <text x="18" y="24" font-family="'Plus Jakarta Sans', Arial, sans-serif" font-weight="900" font-size="15" fill="#0f172a" letter-spacing="-0.3">
+      MONTAIR-LC
+    </text>
+
+    <!-- Active Salt Composition -->
+    <text x="18" y="40" font-family="'Plus Jakarta Sans', Arial, sans-serif" font-weight="700" font-size="10" fill="#0891b2">
+      🔬 Montelukast 10mg + Levocetirizine 5mg
+    </text>
+
+    <!-- Manufacturer & Type -->
+    <text x="18" y="53" font-family="'Plus Jakarta Sans', Arial, sans-serif" font-weight="600" font-size="8.5" fill="#64748b">
+      CIPLA LIMITED • DUAL ALLERGY CARE
+    </text>
+
+    <!-- Security Hologram Seal Icon -->
+    <g transform="translate(305, 12)">
+      <circle cx="18" cy="18" r="16" fill="#ecfeff" stroke="#0891b2" stroke-width="1.5" />
+      <text x="18" y="23" font-size="16" text-anchor="middle">🛡️</text>
+    </g>
+  </g>
+</svg>
