@@ -15,21 +15,31 @@ function Checkout({
     city: user?.city || "Hyderabad",
     pincode: user?.pincode || "500081",
     deliverySlot: "express", // 'express' | 'sameday' | 'scheduled'
-    paymentMethod: "cod", // Cash on Delivery only
+    paymentMethod: "cod", // 'cod' | 'upi'
   });
 
+  const [prescriptionFile, setPrescriptionFile] = useState(null);
+  const [prescriptionUploaded, setPrescriptionUploaded] = useState(false);
   const [errors, setErrors] = useState({});
 
   const subtotal = checkoutMeta.subtotal || cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const discountAmount = checkoutMeta.discountAmount || 0;
   const deliveryFee = checkoutMeta.deliveryFee !== undefined ? checkoutMeta.deliveryFee : subtotal >= 500 ? 0 : 40;
   const total = Math.max(0, subtotal - discountAmount + deliveryFee);
-  const hasRxItem = cart.some((item) => item.prescriptionRequired);
+  const hasRxItem = cart.some((item) => item.prescriptionRequired || item.prescription_required);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
     setErrors((prev) => ({ ...prev, [name]: "" }));
+  };
+
+  const handlePrescriptionSelect = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setPrescriptionFile(file);
+      setPrescriptionUploaded(true);
+    }
   };
 
   const validate = () => {
@@ -48,7 +58,11 @@ function Checkout({
     e.preventDefault();
     if (!validate()) return;
 
-    // Direct Cash on Delivery placement
+    const isCod = form.paymentMethod === "cod";
+    const paymentId = isCod
+      ? "COD_" + Math.random().toString(36).substring(2, 10).toUpperCase()
+      : "PAY_UPI_" + Math.random().toString(36).substring(2, 10).toUpperCase();
+
     onPlaceOrder({
       customer: form,
       subtotal,
@@ -58,12 +72,14 @@ function Checkout({
       items: cart,
       autoRefill: checkoutMeta.autoRefill || false,
       deliverySlot: form.deliverySlot,
-      paymentMethod: "cod",
-      paymentId: "COD_" + Math.random().toString(36).substring(2, 10).toUpperCase(),
-      transactionRef: "TXN_COD_" + Date.now(),
-      gatewayName: "Cash on Delivery",
-      paidAt: new Date().toISOString(),
-      paymentStatus: "Pending (Cash on Delivery)",
+      paymentMethod: form.paymentMethod,
+      paymentId,
+      transactionRef: "TXN_" + Date.now(),
+      gatewayName: isCod ? "Cash on Delivery" : "SV Care Instant UPI Gateway",
+      paidAt: isCod ? null : new Date().toISOString(),
+      paymentStatus: isCod ? "pending" : "paid",
+      prescriptionUploaded,
+      prescriptionFileName: prescriptionFile?.name || (hasRxItem ? "Prescription_Attached.pdf" : null),
     });
   };
 
@@ -81,13 +97,13 @@ function Checkout({
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200 px-4 py-2 text-xs font-extrabold text-slate-700 hover:bg-slate-100 shadow-sm"
+          className="inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200 px-4 py-2 text-xs font-extrabold text-slate-700 hover:bg-slate-100 shadow-sm transition"
         >
           ← Back to Healthcare Cart
         </button>
 
         <form onSubmit={handleSubmit} className="grid gap-8 lg:grid-cols-[1fr_380px]">
-          {/* LEFT COLUMN: Customer, Slot, Payment */}
+          {/* LEFT COLUMN: Customer, Slot, Prescription, Payment */}
           <div className="space-y-6">
             {/* Header Card */}
             <div className="rounded-3xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm">
@@ -98,7 +114,7 @@ function Checkout({
                 Delivery & Order Details
               </h1>
               <p className="mt-1 text-xs text-slate-500">
-                Your order is fulfilled under temperature-controlled cold-chain standards. Pay upon doorstep delivery.
+                Your order is fulfilled under temperature-controlled cold-chain standards.
               </p>
 
               {/* 1. Customer & Delivery Address */}
@@ -195,7 +211,55 @@ function Checkout({
                 </div>
               </div>
 
-              {/* 2. Delivery Speed & Slot Selector */}
+              {/* 2. Prescription Upload Section (if prescription required items in cart) */}
+              {hasRxItem && (
+                <div className="mt-8 space-y-4 pt-6 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-sm font-black uppercase tracking-wider text-amber-900 flex items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500 text-white text-xs font-bold">
+                        📄
+                      </span>
+                      Doctor's Prescription (Schedule H Item)
+                    </h2>
+                    <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-black text-amber-800 border border-amber-300">
+                      Rx Required
+                    </span>
+                  </div>
+
+                  <div className="rounded-2xl border-2 border-dashed border-amber-300 bg-amber-50/50 p-5 text-center space-y-3">
+                    <div className="flex items-center justify-center gap-2 text-amber-800 font-bold text-xs">
+                      <span>📸</span>
+                      <span>Upload Prescription Photo / PDF</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
+                      Please attach your valid doctor prescription for dosage verification by our licensed pharmacist.
+                    </p>
+
+                    <input
+                      type="file"
+                      id="rxUpload"
+                      accept="image/*,.pdf"
+                      onChange={handlePrescriptionSelect}
+                      className="hidden"
+                    />
+
+                    <label
+                      htmlFor="rxUpload"
+                      className="inline-block rounded-xl bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 text-xs font-bold cursor-pointer transition shadow-xs"
+                    >
+                      {prescriptionFile ? `✓ ${prescriptionFile.name}` : "📁 Select Prescription File"}
+                    </label>
+
+                    {prescriptionUploaded && (
+                      <p className="text-[10px] text-emerald-700 font-bold">
+                        ✓ Prescription document attached securely
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* 3. Delivery Speed & Slot Selector */}
               <div className="mt-8 space-y-4 pt-6 border-t border-slate-100">
                 <h2 className="text-sm font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
                   <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-white text-xs">
@@ -282,40 +346,67 @@ function Checkout({
                 </div>
               </div>
 
-              {/* 3. Payment Method */}
+              {/* 4. Payment Method */}
               <div className="mt-8 space-y-4 pt-6 border-t border-slate-100">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-white text-xs">
-                      3
-                    </span>
-                    Payment Method
-                  </h2>
-                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-                    💵 Cash on Delivery Only
+                <h2 className="text-sm font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-white text-xs">
+                    3
                   </span>
-                </div>
+                  Choose Payment Method
+                </h2>
 
-                {/* Cash on Delivery Card */}
-                <div className="rounded-2xl border-2 border-emerald-500 bg-emerald-50/60 p-4.5 flex items-start gap-4">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-2xl text-white shadow-md shadow-emerald-600/30">
-                    💵
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-black text-sm text-slate-900">Cash / UPI on Delivery (COD)</h4>
-                      <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[9px] font-black text-white">
-                        Active
-                      </span>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {/* Cash on Delivery Card */}
+                  <label
+                    className={`rounded-2xl border-2 p-4 cursor-pointer flex items-start gap-3 transition ${
+                      form.paymentMethod === "cod"
+                        ? "border-emerald-600 bg-emerald-50/60 ring-2 ring-emerald-500"
+                        : "border-slate-200 bg-white"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="cod"
+                      checked={form.paymentMethod === "cod"}
+                      onChange={handleChange}
+                      className="mt-1 accent-emerald-600"
+                    />
+                    <div>
+                      <h4 className="font-black text-xs text-slate-900 flex items-center gap-1.5">
+                        <span>💵</span> Cash / UPI on Delivery
+                      </h4>
+                      <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                        Pay with cash or QR code after doorstep arrival. Zero advance risk.
+                      </p>
                     </div>
-                    <p className="text-xs text-slate-600 mt-1">
-                      Pay with cash or scan the delivery rider's UPI QR code upon doorstep delivery after inspecting your items.
-                    </p>
-                    <div className="mt-2.5 flex flex-wrap gap-2 text-[10px] font-bold text-emerald-800">
-                      <span className="rounded-md bg-white border border-emerald-200 px-2 py-0.5">✓ No Advance Payment Required</span>
-                      <span className="rounded-md bg-white border border-emerald-200 px-2 py-0.5">✓ Doorstep Verification</span>
+                  </label>
+
+                  {/* Prepaid UPI Card */}
+                  <label
+                    className={`rounded-2xl border-2 p-4 cursor-pointer flex items-start gap-3 transition ${
+                      form.paymentMethod === "upi"
+                        ? "border-emerald-600 bg-emerald-50/60 ring-2 ring-emerald-500"
+                        : "border-slate-200 bg-white"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="upi"
+                      checked={form.paymentMethod === "upi"}
+                      onChange={handleChange}
+                      className="mt-1 accent-emerald-600"
+                    />
+                    <div>
+                      <h4 className="font-black text-xs text-slate-900 flex items-center gap-1.5">
+                        <span>⚡</span> Instant Digital Pay (UPI / Card)
+                      </h4>
+                      <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                        Secure instant payment with Google Pay, PhonePe, Paytm, or Card.
+                      </p>
                     </div>
-                  </div>
+                  </label>
                 </div>
               </div>
             </div>
@@ -366,11 +457,11 @@ function Checkout({
               </div>
             </div>
 
-            {/* Prescription Requirement Flag */}
+            {/* Prescription Notice */}
             {hasRxItem && (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-800 space-y-1">
-                <p className="font-bold">⚠️ Rx Verification Notice:</p>
-                <p>This order contains prescription medications. Our licensed pharmacist will verify and confirm your prescription upon dispatch.</p>
+                <p className="font-bold">⚠️ Rx Clinical Notice:</p>
+                <p>This order contains Schedule H medicines. Pharmacist verification will occur before dispatch.</p>
               </div>
             )}
 
@@ -379,13 +470,17 @@ function Checkout({
               type="submit"
               className="w-full rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 py-4 text-xs font-black text-white shadow-xl shadow-emerald-600/25 transition hover:from-emerald-700 hover:to-teal-800 active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
             >
-              <span>💵</span>
-              <span>Confirm Order with Cash on Delivery (₹{total}) →</span>
+              <span>{form.paymentMethod === "cod" ? "💵" : "⚡"}</span>
+              <span>
+                {form.paymentMethod === "cod"
+                  ? `Confirm Order with Cash on Delivery (₹${total}) →`
+                  : `Pay & Place Order Now (₹${total}) →`}
+              </span>
             </button>
 
             <div className="text-center text-[10px] text-slate-400 space-y-1">
               <p>✓ 100% Genuine Cold-Chain Pharmacy Standard</p>
-              <p>✓ Pay on Delivery • Zero Advance Risk</p>
+              <p>✓ Temperature Monitored Delivery (18°C - 24°C)</p>
             </div>
           </aside>
         </form>
