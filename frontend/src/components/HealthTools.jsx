@@ -245,9 +245,9 @@ function HealthTools({ isOpen, onClose, onAddToCart }) {
                                   onAddToCart(prod);
                                   alert(`Added ${prod.name} to cart!`);
                                 }}
-                                className="mt-2 w-full rounded-lg bg-emerald-600 py-1.5 text-[11px] font-bold text-white hover:bg-emerald-700"
+                                className="mt-2 w-full rounded-full bg-[#FFD814] hover:bg-[#F7CA00] border border-[#FCD200] py-1.5 text-[11px] font-bold text-slate-950 shadow-xs active:scale-95 transition"
                               >
-                                + Add to Cart
+                                🛒 Add to cart
                               </button>
                             </div>
                           );
@@ -335,11 +335,11 @@ function HealthTools({ isOpen, onClose, onAddToCart }) {
                       });
                       alert(`Added ${selectedProduct.genericSubstitute.name} to cart!`);
                     }}
-                    className="w-full rounded-2xl bg-emerald-600 py-3.5 text-xs font-extrabold text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 transition flex items-center justify-center gap-2"
+                    className="w-full rounded-full bg-[#FFD814] hover:bg-[#F7CA00] border border-[#FCD200] py-3 text-xs font-extrabold text-slate-950 shadow-md hover:shadow-lg shadow-amber-300/30 transition active:scale-95 flex items-center justify-center gap-2"
                   >
                     <span>🛒</span>
                     <span>
-                      Add {selectedProduct.genericSubstitute.name} to Cart (₹
+                      Add {selectedProduct.genericSubstitute.name} to cart (₹
                       {selectedProduct.genericSubstitute.price})
                     </span>
                   </button>

@@ -125,15 +125,15 @@ function ProductCard({
 
           {/* Stepper or ADD */}
           {isInCart ? (
-            <div className="flex-1 flex items-center justify-between rounded-lg bg-emerald-700 p-0.5 text-white shadow-xs">
+            <div className="flex-1 flex items-center justify-between rounded-full bg-[#FFD814] border border-[#FCD200] p-0.5 text-slate-950 shadow-xs">
               <button
                 type="button"
                 onClick={() => onDecrease && onDecrease(product.id)}
-                className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-800 text-xs font-black text-white hover:bg-emerald-900 active:scale-90 transition"
+                className="flex h-6 w-6 items-center justify-center rounded-full bg-[#F7CA00] hover:bg-[#F0B800] text-xs font-black text-slate-950 active:scale-90 transition"
               >
                 −
               </button>
-              <span className="text-[11px] font-black px-1.5">{cartQuantity}</span>
+              <span className="text-[11px] font-black px-1.5 text-slate-950">{cartQuantity}</span>
               <button
                 type="button"
                 onClick={() => {
@@ -142,7 +142,7 @@ function ProductCard({
                   }
                 }}
                 disabled={cartQuantity >= stock}
-                className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-500 text-xs font-black text-white hover:bg-emerald-400 active:scale-90 transition"
+                className="flex h-6 w-6 items-center justify-center rounded-full bg-[#F7CA00] hover:bg-[#F0B800] text-xs font-black text-slate-950 active:scale-90 transition"
               >
                 +
               </button>
@@ -152,14 +152,14 @@ function ProductCard({
               type="button"
               onClick={() => onAddToCart(product)}
               disabled={isOutOfStock}
-              className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-black text-white shadow-xs transition active:scale-95 ${
+              className={`flex-1 flex items-center justify-center gap-1.5 rounded-full py-1.5 px-3 text-xs font-bold text-slate-950 shadow-xs border transition-all duration-150 active:scale-95 ${
                 isOutOfStock
-                  ? "bg-slate-300 cursor-not-allowed text-[10px]"
-                  : "bg-emerald-600 hover:bg-emerald-700"
+                  ? "bg-slate-200 border-slate-300 text-slate-400 cursor-not-allowed text-[10px]"
+                  : "bg-[#FFD814] hover:bg-[#F7CA00] border-[#FCD200] hover:border-[#F2C200] hover:shadow-sm"
               }`}
             >
-              <span>+</span>
-              <span>{isOutOfStock ? "Unavailable" : "ADD"}</span>
+              <span className="text-xs">🛒</span>
+              <span>{isOutOfStock ? "Unavailable" : "Add to cart"}</span>
             </button>
           )}
         </div>

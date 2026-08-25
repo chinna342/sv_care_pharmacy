@@ -176,9 +176,9 @@ function HealthAssistantChat({ isOpen, onClose, onAddToCart }) {
                                 onAddToCart(prod);
                                 alert(`Added ${prod.name} to cart!`);
                               }}
-                              className="rounded-lg bg-emerald-600 px-2.5 py-1 font-bold text-white hover:bg-emerald-700 shadow-sm"
+                              className="rounded-full bg-[#FFD814] hover:bg-[#F7CA00] border border-[#FCD200] px-3 py-1 text-xs font-bold text-slate-950 shadow-xs active:scale-95 transition"
                             >
-                              + Add
+                              + Add to cart
                             </button>
                           </div>
                         );

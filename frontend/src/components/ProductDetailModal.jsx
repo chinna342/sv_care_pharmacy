@@ -315,7 +315,7 @@ function ProductDetailModal({ product, onClose, onAddToCart }) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 sm:flex-none rounded-xl border border-slate-300 bg-white px-5 py-3 text-xs font-bold text-slate-700 hover:bg-slate-100"
+              className="flex-1 sm:flex-none rounded-full border border-slate-300 bg-white px-5 py-3 text-xs font-bold text-slate-700 hover:bg-slate-100 transition active:scale-95"
             >
               Close
             </button>
@@ -323,15 +323,15 @@ function ProductDetailModal({ product, onClose, onAddToCart }) {
               type="button"
               onClick={handleAdd}
               disabled={isOutOfStock}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-xl px-7 py-3 text-xs font-extrabold text-white shadow-lg transition active:scale-95 ${
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-full px-8 py-3 text-xs font-extrabold text-slate-950 shadow-md border transition active:scale-95 ${
                 isOutOfStock
-                  ? "bg-slate-300 cursor-not-allowed"
-                  : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20"
+                  ? "bg-slate-200 border-slate-300 text-slate-400 cursor-not-allowed"
+                  : "bg-[#FFD814] hover:bg-[#F7CA00] border-[#FCD200] hover:border-[#F2C200] hover:shadow-lg shadow-amber-400/20"
               }`}
             >
-              <span>🛒</span>
+              <span className="text-sm">🛒</span>
               <span>
-                Add {quantity > 1 ? `${quantity} Items` : "to Cart"} • ₹{currentPrice * quantity}
+                Add {quantity > 1 ? `${quantity} Items` : "to cart"} • ₹{currentPrice * quantity}
               </span>
             </button>
           </div>
