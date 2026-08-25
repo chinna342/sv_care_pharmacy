@@ -1,5 +1,5 @@
 from database import SessionLocal, engine
-from models import Base, User, Product, Category, Inventory
+from models import Base, User, Product, Category, Inventory, CustomerProfile, PharmacistProfile, DeliveryProfile
 from jwt_handler import hash_password
 
 def seed_database():
@@ -52,6 +52,13 @@ def seed_database():
             if not existing:
                 u = User(**u_data)
                 db.add(u)
+                db.flush()
+                if u.role == "CUSTOMER":
+                    db.add(CustomerProfile(user_id=u.id, preferred_pincode="500081"))
+                elif u.role == "PHARMACIST":
+                    db.add(PharmacistProfile(user_id=u.id, license_number="TS/HYD/2026/8942-R"))
+                elif u.role == "DELIVERY":
+                    db.add(DeliveryProfile(user_id=u.id, vehicle_number="TS-09-EV-8942"))
                 print(f"[SEEDED USER] {u_data['role']}: {u_data['email']} ({u_data['phone']})")
 
         # 2. Ensure Inventory for all existing products

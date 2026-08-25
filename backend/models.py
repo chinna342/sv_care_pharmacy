@@ -77,6 +77,50 @@ class User(Base):
     addresses = relationship("Address", back_populates="user", cascade="all, delete-orphan")
     prescriptions = relationship("Prescription", back_populates="user", foreign_keys="[Prescription.user_id]")
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
+    customer_profile = relationship("CustomerProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    pharmacist_profile = relationship("PharmacistProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    delivery_profile = relationship("DeliveryProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
+
+
+class CustomerProfile(Base):
+    __tablename__ = "customer_profiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
+    medical_notes = Column(Text, nullable=True)
+    allergies = Column(String(255), nullable=True)
+    preferred_pincode = Column(String(10), nullable=True, default="500081")
+    loyalty_points = Column(Integer, nullable=False, default=0)
+
+    user = relationship("User", back_populates="customer_profile")
+
+
+class PharmacistProfile(Base):
+    __tablename__ = "pharmacist_profiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
+    license_number = Column(String(100), nullable=False, default="TS/HYD/2026/8942-R")
+    qualification = Column(String(150), nullable=False, default="Pharm.D / B.Pharm (Registered Clinical Pharmacist)")
+    designation = Column(String(100), nullable=False, default="Clinical Dispatch Lead")
+    is_verified = Column(Boolean, nullable=False, default=True)
+
+    user = relationship("User", back_populates="pharmacist_profile")
+
+
+class DeliveryProfile(Base):
+    __tablename__ = "delivery_profiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
+    vehicle_number = Column(String(50), nullable=False, default="TS-09-EV-8942")
+    vehicle_type = Column(String(50), nullable=False, default="Electric Express EV")
+    driving_license = Column(String(100), nullable=False, default="DL-TS-2026-9042")
+    is_available = Column(Boolean, nullable=False, default=True)
+    current_lat = Column(Numeric(10, 6), nullable=True)
+    current_lng = Column(Numeric(10, 6), nullable=True)
+
+    user = relationship("User", back_populates="delivery_profile")
 
 
 # ============================================================

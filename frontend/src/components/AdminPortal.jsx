@@ -510,7 +510,136 @@ export default function AdminPortal({
         )}
 
         {/* ========================================== */}
-        {/* TAB 4: AUDIT LOGS */}
+        {/* TAB 4: CATEGORIES MANAGEMENT */}
+        {/* ========================================== */}
+        {activeTab === "categories" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between rounded-2xl bg-slate-950 p-4 border border-slate-800">
+              <div>
+                <h3 className="text-sm font-bold text-white">Medical Product Categories</h3>
+                <p className="text-xs text-slate-400">Manage 8 healthcare departments and classification badges.</p>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {defaultCategories.map((cat) => {
+                const count = products.filter((p) => p.category === cat.name).length;
+                return (
+                  <div key={cat.id} className="rounded-3xl border border-slate-800 bg-slate-950 p-4 space-y-3 shadow-md">
+                    <div className="flex items-center justify-between">
+                      <span className="text-2xl p-2 rounded-2xl bg-slate-900 border border-slate-800">{cat.icon || "💊"}</span>
+                      <span className="rounded-full bg-indigo-500/20 px-2.5 py-0.5 text-[10px] font-bold text-indigo-400">
+                        {count} Medicines
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-black text-white">{cat.name}</p>
+                      <p className="text-[11px] text-slate-400 line-clamp-2 mt-1">{cat.description || "Healthcare and wellness formulations"}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ========================================== */}
+        {/* TAB 5: WAREHOUSE INVENTORY */}
+        {/* ========================================== */}
+        {activeTab === "inventory" && (
+          <div className="space-y-4">
+            <div className="rounded-2xl bg-slate-950 p-4 border border-slate-800">
+              <h3 className="text-sm font-bold text-white">Warehouse Inventory Oversight & Reorder Levels</h3>
+              <p className="text-xs text-slate-400">Monitors physical available units, reserve holds, and reorder levels.</p>
+            </div>
+
+            <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950">
+              <table className="w-full text-left text-xs text-slate-300">
+                <thead className="border-b border-slate-800 bg-slate-900 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  <tr>
+                    <th className="px-4 py-3.5">Medicine</th>
+                    <th className="px-4 py-3.5">Available Stock</th>
+                    <th className="px-4 py-3.5">Reorder Level</th>
+                    <th className="px-4 py-3.5">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 font-medium">
+                  {products.map((p) => (
+                    <tr key={p.id} className="hover:bg-slate-900/60 transition">
+                      <td className="px-4 py-3 font-bold text-white">{p.name}</td>
+                      <td className="px-4 py-3 font-mono font-bold text-emerald-400">{p.stock} units</td>
+                      <td className="px-4 py-3 text-slate-400 font-mono">15 units</td>
+                      <td className="px-4 py-3">
+                        {p.stock <= 0 ? (
+                          <span className="rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-bold text-rose-400">OUT OF STOCK</span>
+                        ) : p.stock <= 15 ? (
+                          <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-400">LOW STOCK</span>
+                        ) : (
+                          <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400">IN STOCK</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================== */}
+        {/* TAB 6: MASTER ORDERS */}
+        {/* ========================================== */}
+        {activeTab === "orders" && (
+          <div className="space-y-4">
+            <div className="rounded-2xl bg-slate-950 p-4 border border-slate-800">
+              <h3 className="text-sm font-bold text-white">Master Orders Queue ({orders.length})</h3>
+              <p className="text-xs text-slate-400">Track and audit orders across all fulfillment states.</p>
+            </div>
+
+            <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950">
+              <table className="w-full text-left text-xs text-slate-300">
+                <thead className="border-b border-slate-800 bg-slate-900 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  <tr>
+                    <th className="px-4 py-3.5">Order ID</th>
+                    <th className="px-4 py-3.5">Customer</th>
+                    <th className="px-4 py-3.5">Total & Payment</th>
+                    <th className="px-4 py-3.5">Status</th>
+                    <th className="px-4 py-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 font-medium">
+                  {orders.map((ord) => (
+                    <tr key={ord.id} className="hover:bg-slate-900/60 transition">
+                      <td className="px-4 py-3 font-mono font-bold text-indigo-400">{ord.id || ord.order_number}</td>
+                      <td className="px-4 py-3">
+                        <p className="font-bold text-white">{ord.customer?.name}</p>
+                        <p className="text-[10px] text-slate-400">{ord.customer?.phone}</p>
+                      </td>
+                      <td className="px-4 py-3 font-bold text-emerald-400">₹{ord.total} ({ord.paymentMethod?.toUpperCase()})</td>
+                      <td className="px-4 py-3">
+                        <span className="rounded-full bg-slate-800 px-2.5 py-0.5 text-[10px] font-black uppercase text-slate-300">
+                          {(ord.status || ord.order_status || "PENDING").replace(/_/g, " ")}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => onOpenInvoice && onOpenInvoice(ord)}
+                          className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-200 hover:bg-slate-700"
+                        >
+                          🖨️ Invoice
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================== */}
+        {/* TAB 7: AUDIT LOGS */}
         {/* ========================================== */}
         {activeTab === "audit" && (
           <div className="space-y-4">
@@ -553,6 +682,31 @@ export default function AdminPortal({
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================== */}
+        {/* TAB 8: SETTINGS */}
+        {/* ========================================== */}
+        {activeTab === "settings" && (
+          <div className="space-y-4">
+            <div className="rounded-2xl bg-slate-950 p-5 border border-slate-800 space-y-4">
+              <h3 className="text-sm font-bold text-white">Pharmacy Regulatory & Platform Settings</h3>
+              
+              <div className="grid gap-4 sm:grid-cols-2 text-xs">
+                <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 space-y-1">
+                  <p className="text-slate-400 font-bold uppercase text-[10px]">Pharmacy License Number</p>
+                  <p className="text-white font-mono font-bold">TS/HYD/2026/8942-R (Form 20B/21B)</p>
+                  <p className="text-[10px] text-emerald-400">✓ Validated with Drugs Control Administration</p>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 space-y-1">
+                  <p className="text-slate-400 font-bold uppercase text-[10px]">Cold-Chain Protocol</p>
+                  <p className="text-white font-bold">18°C – 24°C Insulated Micro-Box</p>
+                  <p className="text-[10px] text-teal-400">✓ IoT temperature tracking active</p>
+                </div>
+              </div>
             </div>
           </div>
         )}
