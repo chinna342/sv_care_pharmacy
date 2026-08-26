@@ -51,6 +51,18 @@ export async function apiRequest(endpoint, options = {}) {
 // AUTH APIs
 // ----------------------------------------------------
 export const authApi = {
+  sendEmailOtp: (email, name) =>
+    apiRequest("/auth/send-email-otp", {
+      method: "POST",
+      body: JSON.stringify({ email, name }),
+    }),
+
+  verifyEmailOtp: (email, otp, name) =>
+    apiRequest("/auth/verify-email-otp", {
+      method: "POST",
+      body: JSON.stringify({ email, otp, name }),
+    }),
+
   sendOtp: (phone, country_code = "+91") =>
     apiRequest("/auth/send-otp", {
       method: "POST",

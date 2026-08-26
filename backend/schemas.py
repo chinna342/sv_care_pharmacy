@@ -22,6 +22,25 @@ class UserRegister(BaseModel):
     role: Optional[str] = "CUSTOMER"
 
 
+class SendEmailOtpRequest(BaseModel):
+    email: str
+    name: Optional[str] = None
+
+
+class SendEmailOtpResponse(BaseModel):
+    success: bool
+    message: str
+    email: str
+    otp: Optional[str] = None
+    expires_in_seconds: int
+
+
+class VerifyEmailOtpRequest(BaseModel):
+    email: str
+    otp: str
+    name: Optional[str] = None
+
+
 class SendOtpRequest(BaseModel):
     phone: str
     country_code: Optional[str] = "+91"
