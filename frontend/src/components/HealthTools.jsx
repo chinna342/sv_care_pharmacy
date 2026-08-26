@@ -245,7 +245,7 @@ function HealthTools({ isOpen, onClose, onAddToCart }) {
                                   onAddToCart(prod);
                                   alert(`Added ${prod.name} to cart!`);
                                 }}
-                                className="mt-2 w-full rounded-full bg-[#FFD814] hover:bg-[#F7CA00] border border-[#FCD200] py-1.5 text-[11px] font-bold text-slate-950 shadow-xs active:scale-95 transition"
+                                className="mt-2 w-full rounded-full bg-emerald-600 hover:bg-emerald-700 border border-emerald-600 py-1.5 text-[11px] font-bold text-white shadow-xs active:scale-95 transition"
                               >
                                 🛒 Add to cart
                               </button>
@@ -335,7 +335,7 @@ function HealthTools({ isOpen, onClose, onAddToCart }) {
                       });
                       alert(`Added ${selectedProduct.genericSubstitute.name} to cart!`);
                     }}
-                    className="w-full rounded-full bg-[#FFD814] hover:bg-[#F7CA00] border border-[#FCD200] py-3 text-xs font-extrabold text-slate-950 shadow-md hover:shadow-lg shadow-amber-300/30 transition active:scale-95 flex items-center justify-center gap-2"
+                    className="w-full rounded-full bg-emerald-600 hover:bg-emerald-700 border border-emerald-600 py-3 text-xs font-extrabold text-white shadow-md hover:shadow-lg shadow-emerald-600/30 transition active:scale-95 flex items-center justify-center gap-2"
                   >
                     <span>🛒</span>
                     <span>

@@ -47,7 +47,7 @@ function MyOrdersModal({ orders = [], onClose, onTrackOrder, onReorder, onOpenIn
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-full bg-[#FFD814] hover:bg-[#F7CA00] border border-[#FCD200] px-6 py-2.5 text-xs font-bold text-slate-950 shadow-sm active:scale-95 transition"
+                className="rounded-full bg-emerald-600 hover:bg-emerald-700 border border-emerald-600 px-6 py-2.5 text-xs font-bold text-white shadow-sm active:scale-95 transition"
               >
                 Browse Medicines Now →
               </button>
@@ -180,7 +180,7 @@ function MyOrdersModal({ orders = [], onClose, onTrackOrder, onReorder, onOpenIn
                         <button
                           type="button"
                           onClick={() => onReorder(order)}
-                          className="flex items-center gap-1.5 rounded-full bg-[#FFD814] hover:bg-[#F7CA00] border border-[#FCD200] px-5 py-2 text-xs font-bold text-slate-950 shadow-xs active:scale-95 transition"
+                          className="flex items-center gap-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 border border-emerald-600 px-5 py-2 text-xs font-bold text-white shadow-xs active:scale-95 transition"
                         >
                           <span>🛒</span>
                           <span>Re-order All Items</span>

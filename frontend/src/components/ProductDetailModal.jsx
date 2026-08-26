@@ -323,10 +323,10 @@ function ProductDetailModal({ product, onClose, onAddToCart }) {
               type="button"
               onClick={handleAdd}
               disabled={isOutOfStock}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-full px-8 py-3 text-xs font-extrabold text-slate-950 shadow-md border transition active:scale-95 ${
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-full px-8 py-3 text-xs font-extrabold text-white shadow-md border transition active:scale-95 ${
                 isOutOfStock
                   ? "bg-slate-200 border-slate-300 text-slate-400 cursor-not-allowed"
-                  : "bg-[#FFD814] hover:bg-[#F7CA00] border-[#FCD200] hover:border-[#F2C200] hover:shadow-lg shadow-amber-400/20"
+                  : "bg-emerald-600 hover:bg-emerald-700 border-emerald-600 hover:border-emerald-700 hover:shadow-lg shadow-emerald-600/20"
               }`}
             >
               <span className="text-sm">🛒</span>

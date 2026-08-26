@@ -125,15 +125,15 @@ function ProductCard({
 
           {/* Stepper or ADD */}
           {isInCart ? (
-            <div className="flex-1 flex items-center justify-between rounded-full bg-[#FFD814] border border-[#FCD200] p-0.5 text-slate-950 shadow-xs">
+            <div className="flex-1 flex items-center justify-between rounded-full bg-emerald-600 border border-emerald-700 p-0.5 text-white shadow-xs">
               <button
                 type="button"
                 onClick={() => onDecrease && onDecrease(product.id)}
-                className="flex h-6 w-6 items-center justify-center rounded-full bg-[#F7CA00] hover:bg-[#F0B800] text-xs font-black text-slate-950 active:scale-90 transition"
+                className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-700 hover:bg-emerald-800 text-xs font-black text-white active:scale-90 transition"
               >
                 −
               </button>
-              <span className="text-[11px] font-black px-1.5 text-slate-950">{cartQuantity}</span>
+              <span className="text-[11px] font-black px-1.5 text-white">{cartQuantity}</span>
               <button
                 type="button"
                 onClick={() => {
@@ -142,7 +142,7 @@ function ProductCard({
                   }
                 }}
                 disabled={cartQuantity >= stock}
-                className="flex h-6 w-6 items-center justify-center rounded-full bg-[#F7CA00] hover:bg-[#F0B800] text-xs font-black text-slate-950 active:scale-90 transition"
+                className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-700 hover:bg-emerald-800 text-xs font-black text-white active:scale-90 transition disabled:opacity-50"
               >
                 +
               </button>
@@ -152,10 +152,10 @@ function ProductCard({
               type="button"
               onClick={() => onAddToCart(product)}
               disabled={isOutOfStock}
-              className={`flex-1 flex items-center justify-center gap-1.5 rounded-full py-1.5 px-3 text-xs font-bold text-slate-950 shadow-xs border transition-all duration-150 active:scale-95 ${
+              className={`flex-1 flex items-center justify-center gap-1.5 rounded-full py-1.5 px-3 text-xs font-bold text-white shadow-xs border transition-all duration-150 active:scale-95 ${
                 isOutOfStock
                   ? "bg-slate-200 border-slate-300 text-slate-400 cursor-not-allowed text-[10px]"
-                  : "bg-[#FFD814] hover:bg-[#F7CA00] border-[#FCD200] hover:border-[#F2C200] hover:shadow-sm"
+                  : "bg-emerald-600 hover:bg-emerald-700 border-emerald-600 hover:border-emerald-700 hover:shadow-sm"
               }`}
             >
               <span className="text-xs">🛒</span>
