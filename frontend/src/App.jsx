@@ -91,7 +91,20 @@ function App() {
   const [user, setUser] = useState(() => {
     try {
       const saved = localStorage.getItem("svcare_user");
-      return saved ? JSON.parse(saved) : null;
+      if (!saved) return null;
+      const parsed = JSON.parse(saved);
+      // Clean legacy dummy address data so manual entry is always pristine
+      if (parsed.house && parsed.house.includes("Green Valley")) {
+        delete parsed.house;
+        delete parsed.area;
+        delete parsed.city;
+        delete parsed.pincode;
+        if (parsed.phone && parsed.phone.includes("9876543210")) {
+          delete parsed.phone;
+        }
+        localStorage.setItem("svcare_user", JSON.stringify(parsed));
+      }
+      return parsed;
     } catch {
       return null;
     }

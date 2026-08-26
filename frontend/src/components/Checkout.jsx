@@ -9,11 +9,11 @@ function Checkout({
 }) {
   const [form, setForm] = useState({
     name: user?.name || "",
-    phone: user?.phone ? user.phone.replace(/[^\d]/g, "").slice(-10) : "",
-    house: user?.house || "",
-    area: user?.area || "",
-    city: user?.city || "Hyderabad",
-    pincode: user?.pincode || "500081",
+    phone: user?.phone && !user.phone.includes("9876543210") ? user.phone.replace(/[^\d]/g, "").slice(-10) : "",
+    house: "",
+    area: "",
+    city: "",
+    pincode: "",
     deliverySlot: "express", // 'express' | 'sameday' | 'scheduled'
     paymentMethod: "cod", // 'cod' | 'upi'
   });
@@ -159,13 +159,13 @@ function Checkout({
 
                   <div className="sm:col-span-2">
                     <label className="text-[11px] font-extrabold text-slate-700 block mb-1">
-                      House / Flat / Building / Street
+                      House / Flat / Building / Street *
                     </label>
                     <input
                       name="house"
                       value={form.house}
                       onChange={handleChange}
-                      placeholder="Flat 402, Green Meadows Residency"
+                      placeholder="e.g. Flat 302, Sai Nilayam / Road No. 5"
                       className={inputClass("house")}
                     />
                     {errors.house && <p className="mt-1 text-[11px] text-red-500 font-bold">{errors.house}</p>}
@@ -173,13 +173,13 @@ function Checkout({
 
                   <div>
                     <label className="text-[11px] font-extrabold text-slate-700 block mb-1">
-                      Area / Landmark
+                      Area / Landmark *
                     </label>
                     <input
                       name="area"
                       value={form.area}
                       onChange={handleChange}
-                      placeholder="Madhapur, Hitech City"
+                      placeholder="e.g. Near Metro Station / Landmark"
                       className={inputClass("area")}
                     />
                     {errors.area && <p className="mt-1 text-[11px] text-red-500 font-bold">{errors.area}</p>}
@@ -187,25 +187,27 @@ function Checkout({
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[11px] font-extrabold text-slate-700 block mb-1">City</label>
+                      <label className="text-[11px] font-extrabold text-slate-700 block mb-1">City *</label>
                       <input
                         name="city"
                         value={form.city}
                         onChange={handleChange}
-                        placeholder="Hyderabad"
+                        placeholder="e.g. Hyderabad"
                         className={inputClass("city")}
                       />
+                      {errors.city && <p className="mt-1 text-[11px] text-red-500 font-bold">{errors.city}</p>}
                     </div>
                     <div>
-                      <label className="text-[11px] font-extrabold text-slate-700 block mb-1">PIN Code</label>
+                      <label className="text-[11px] font-extrabold text-slate-700 block mb-1">PIN Code *</label>
                       <input
                         name="pincode"
                         maxLength={6}
                         value={form.pincode}
                         onChange={handleChange}
-                        placeholder="500081"
+                        placeholder="e.g. 500081"
                         className={inputClass("pincode")}
                       />
+                      {errors.pincode && <p className="mt-1 text-[11px] text-red-500 font-bold">{errors.pincode}</p>}
                     </div>
                   </div>
                 </div>
