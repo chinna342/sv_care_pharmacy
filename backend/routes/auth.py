@@ -7,8 +7,11 @@ import requests
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from sqlalchemy.orm import Session
+from dotenv import load_dotenv
 
+load_dotenv()
+
+from sqlalchemy.orm import Session
 from database import get_db
 from models import User, UserRole, AuditLog
 from schemas import (
