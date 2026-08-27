@@ -144,19 +144,43 @@ function App() {
   // ==========================================
   // 5. ORDERS, PRESCRIPTIONS, INVENTORY & REAL-TIME POLLING
   // ==========================================
-  const [orders, setOrders] = useState([]);
+  const [orders, setOrders] = useState(() => {
+    try {
+      const saved = localStorage.getItem("svcare_orders_history_v3");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
   const [isSyncingOrders, setIsSyncingOrders] = useState(false);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [prescriptions, setPrescriptions] = useState([]);
   const [analyticsData, setAnalyticsData] = useState(null);
+
+  // Sync orders with local storage whenever state changes
+  useEffect(() => {
+    try {
+      if (orders && orders.length > 0) {
+        localStorage.setItem("svcare_orders_history_v3", JSON.stringify(orders));
+      }
+    } catch (e) {
+      console.warn("[ORDERS STORAGE]", e);
+    }
+  }, [orders]);
 
   // Authoritative sync from PostgreSQL production backend
   const refreshOrdersFromServer = async (silent = true) => {
     try {
       if (!silent) setIsSyncingOrders(true);
       const data = await ordersApi.getAll();
-      if (Array.isArray(data)) {
+      if (Array.isArray(data) && data.length > 0) {
         setOrders((prev) => {
+          // Merge remote orders with local orders so historical orders are never lost
+          const remoteIds = new Set(data.map((o) => o.order_number || o.id));
+          const localOnly = prev.filter((o) => !remoteIds.has(o.order_number || o.id));
+          const merged = [...data, ...localOnly];
+
           // If pharmacist or admin, detect incoming orders from customer laptops
           if ((isPharmacist || isAdmin) && prev.length > 0) {
             const prevIds = new Set(prev.map((o) => o.order_number || o.id));
@@ -165,7 +189,7 @@ function App() {
               showToast(`🔔 ${incomingOrders.length} New Order(s) Received from Customer Devices!`);
             }
           }
-          return data;
+          return merged;
         });
       }
     } catch (err) {
