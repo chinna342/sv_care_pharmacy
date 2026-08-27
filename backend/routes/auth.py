@@ -144,11 +144,16 @@ def send_email_otp(payload: SendEmailOtpRequest):
     }
 
     user_display = payload.name or clean_email.split("@")[0].capitalize()
-    dispatch_gmail_otp(clean_email, generated_code, user_display)
+    try:
+        dispatch_gmail_otp(clean_email, generated_code, user_display)
+        msg_text = f"6-Digit Verification Code sent to {clean_email}. Please check your Inbox and Spam folder."
+    except Exception as e:
+        print(f"[AUTH GMAIL NOTICE] SMTP dispatch issue: {e}")
+        msg_text = f"OTP code generated for {clean_email}."
 
     return SendEmailOtpResponse(
         success=True,
-        message=f"6-Digit Verification Code sent to {clean_email}",
+        message=msg_text,
         email=clean_email,
         otp=generated_code,
         expires_in_seconds=600

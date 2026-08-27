@@ -68,7 +68,7 @@ function AuthModal({ isOpen, onClose, onLoginSuccess }) {
       const resp = await authApi.sendEmailOtp(cleanEmail, fullName.trim() || undefined);
       const receivedOtp = resp?.otp || (cleanEmail === "venkatc283@gmail.com" ? "955040" : "123456");
       setActiveOtpCode(receivedOtp);
-      setSuccessMessage(resp?.message || `6-Digit OTP sent to ${cleanEmail}`);
+      setSuccessMessage(resp?.message || `6-Digit code sent to ${cleanEmail}. Please check your Gmail Inbox & Spam folder.`);
       setStep("otp");
       setCountdown(60);
       setCanResend(false);
@@ -77,7 +77,7 @@ function AuthModal({ isOpen, onClose, onLoginSuccess }) {
       console.warn("Backend Gmail OTP notice, using dynamic instant code:", err.message);
       const fallbackOtp = cleanEmail === "venkatc283@gmail.com" ? "955040" : Math.floor(100000 + Math.random() * 900000).toString();
       setActiveOtpCode(fallbackOtp);
-      setSuccessMessage(`OTP sent to ${cleanEmail}`);
+      setSuccessMessage(`Backend offline or connecting... Use Auto-Fill code [${fallbackOtp}] or check backend on port 8000.`);
       setStep("otp");
       setCountdown(60);
       setCanResend(false);
