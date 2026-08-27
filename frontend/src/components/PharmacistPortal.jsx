@@ -6,6 +6,8 @@ export default function PharmacistPortal({
   prescriptions = [],
   inventory = [],
   user = null,
+  isSyncing = false,
+  onRefreshOrders,
   onUpdateOrderStatus,
   onReviewPrescription,
   onAdjustStock,
@@ -277,6 +279,28 @@ export default function PharmacistPortal({
         >
           💊 Medicine Catalog
         </button>
+
+        {/* Live Production DB Sync Status & Manual Refresh */}
+        <div className="ml-auto flex items-center gap-3">
+          <div className="flex items-center gap-2 rounded-lg bg-emerald-950/60 border border-emerald-500/30 px-3 py-1.5 text-[11px] text-emerald-400">
+            <span className={`h-2 w-2 rounded-full ${isSyncing ? "bg-amber-400 animate-spin" : "bg-emerald-400 animate-pulse"}`}></span>
+            <span className="font-mono font-bold">
+              {isSyncing ? "Syncing PostgreSQL..." : "PostgreSQL Live Connected"}
+            </span>
+          </div>
+
+          {onRefreshOrders && (
+            <button
+              type="button"
+              onClick={onRefreshOrders}
+              disabled={isSyncing}
+              className="flex items-center gap-1.5 rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs font-bold text-slate-200 hover:bg-emerald-600 hover:text-white transition disabled:opacity-50 cursor-pointer"
+            >
+              <span className={isSyncing ? "animate-spin" : ""}>🔄</span>
+              <span>Sync Orders</span>
+            </button>
+          )}
+        </div>
       </nav>
 
       {/* 3. MAIN BODY CONTAINER */}

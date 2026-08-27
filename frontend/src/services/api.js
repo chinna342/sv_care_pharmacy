@@ -1,4 +1,17 @@
-const API_BASE_URL = "http://127.0.0.1:8000";
+// Get production API base URL from environment or default to local dev
+const getApiBaseUrl = () => {
+  if (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL.replace(/\/+$/, "");
+  }
+  // If running in browser and on custom domain without env, allow relative /api or default
+  if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+    // Check if hosted with Vercel serverless / proxy or custom backend
+    return window.location.origin;
+  }
+  return "http://127.0.0.1:8000";
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 /**
  * Get stored authentication token.
@@ -31,10 +44,10 @@ export async function apiRequest(endpoint, options = {}) {
   try {
     const response = await fetch(url, { ...options, headers });
     if (!response.ok) {
-      let errorDetail = `Request failed (${response.status})`;
+      let errorDetail = `Request failed with status ${response.status}`;
       try {
         const errorJson = await response.json();
-        errorDetail = errorJson.detail || errorDetail;
+        errorDetail = errorJson.detail || errorJson.message || errorDetail;
       } catch {
         // use default
       }
@@ -42,7 +55,7 @@ export async function apiRequest(endpoint, options = {}) {
     }
     return await response.json();
   } catch (err) {
-    console.warn(`[API] ${endpoint} error:`, err.message);
+    console.error(`[API Error] ${options.method || "GET"} ${url}:`, err.message);
     throw err;
   }
 }

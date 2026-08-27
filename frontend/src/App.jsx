@@ -142,39 +142,55 @@ function App() {
   }, [cart]);
 
   // ==========================================
-  // 5. ORDERS, PRESCRIPTIONS, INVENTORY
+  // 5. ORDERS, PRESCRIPTIONS, INVENTORY & REAL-TIME POLLING
   // ==========================================
-  const [orders, setOrders] = useState(() => {
-    try {
-      const saved = localStorage.getItem("svcare_orders_history_v3");
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  useEffect(() => {
-    localStorage.setItem("svcare_orders_history_v3", JSON.stringify(orders));
-  }, [orders]);
-
+  const [orders, setOrders] = useState([]);
+  const [isSyncingOrders, setIsSyncingOrders] = useState(false);
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [prescriptions, setPrescriptions] = useState([]);
   const [analyticsData, setAnalyticsData] = useState(null);
 
-  // Fetch orders from backend if logged in
+  // Authoritative sync from PostgreSQL production backend
+  const refreshOrdersFromServer = async (silent = true) => {
+    try {
+      if (!silent) setIsSyncingOrders(true);
+      const data = await ordersApi.getAll();
+      if (Array.isArray(data)) {
+        setOrders((prev) => {
+          // If pharmacist or admin, detect incoming orders from customer laptops
+          if ((isPharmacist || isAdmin) && prev.length > 0) {
+            const prevIds = new Set(prev.map((o) => o.order_number || o.id));
+            const incomingOrders = data.filter((o) => !prevIds.has(o.order_number || o.id));
+            if (incomingOrders.length > 0) {
+              showToast(`🔔 ${incomingOrders.length} New Order(s) Received from Customer Devices!`);
+            }
+          }
+          return data;
+        });
+      }
+    } catch (err) {
+      if (!silent) {
+        showToast("Could not sync orders with production backend");
+      }
+    } finally {
+      if (!silent) setIsSyncingOrders(false);
+    }
+  };
+
+  // Initial load and periodic 6-second polling for real-time order arrival
   useEffect(() => {
-    ordersApi
-      .getAll()
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setOrders(data);
-        }
-      })
-      .catch(() => {});
+    refreshOrdersFromServer(true);
 
     if (isAdmin) {
       adminApi.getAnalytics().then((res) => setAnalyticsData(res)).catch(() => {});
     }
-  }, [user, isAdmin]);
+
+    const interval = setInterval(() => {
+      refreshOrdersFromServer(true);
+    }, 6000);
+
+    return () => clearInterval(interval);
+  }, [user, isAdmin, isPharmacist]);
 
   // ==========================================
   // 6. UI MODALS & OVERLAYS
@@ -505,27 +521,11 @@ function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handlePlaceOrder = (orderData) => {
-    const orderId = "SV" + Date.now().toString().slice(-8);
-    const newOrder = {
-      id: orderId,
-      order_number: orderId,
-      ...orderData,
-      status: "PENDING_PHARMACIST_REVIEW",
-      order_status: "PENDING_PHARMACIST_REVIEW",
-      createdAt: new Date().toISOString(),
-    };
-
-    setOrders((prev) => [newOrder, ...prev]);
-    setConfirmedOrder(newOrder);
-    setActiveTrackingOrderId(orderId);
-    setCart([]);
-    setCheckoutOpen(false);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-
-    // Send order to backend
-    ordersApi
-      .create({
+  const handlePlaceOrder = async (orderData) => {
+    setIsSubmittingOrder(true);
+    try {
+      // Send order to production backend and create transactional PostgreSQL record
+      const createdServerOrder = await ordersApi.create({
         name: orderData.customer.name,
         phone: orderData.customer.phone,
         house: orderData.customer.house,
@@ -533,12 +533,64 @@ function App() {
         city: orderData.customer.city,
         pincode: orderData.customer.pincode,
         payment_method: orderData.paymentMethod || "cod",
-        payment_id: orderData.paymentId || `COD_${orderId}`,
+        payment_id: orderData.paymentId,
         gateway_name: orderData.gatewayName || "SV Care Gateway",
         prescription_uploaded: !!orderData.prescriptionUploaded,
         items: orderData.items.map((i) => ({ product_id: i.id, quantity: i.quantity })),
-      })
-      .catch(() => {});
+      });
+
+      const authoritativeOrderNumber = createdServerOrder.order_number || `SV${createdServerOrder.id}`;
+      const normalizedOrder = {
+        id: authoritativeOrderNumber,
+        order_number: authoritativeOrderNumber,
+        server_id: createdServerOrder.id,
+        customer: {
+          name: createdServerOrder.address?.name || orderData.customer.name,
+          phone: createdServerOrder.address?.phone || orderData.customer.phone,
+          house: createdServerOrder.address?.house || orderData.customer.house,
+          area: createdServerOrder.address?.area || orderData.customer.area,
+          city: createdServerOrder.address?.city || orderData.customer.city,
+          pincode: createdServerOrder.address?.pincode || orderData.customer.pincode,
+        },
+        items: (createdServerOrder.items && createdServerOrder.items.length > 0)
+          ? createdServerOrder.items.map((item) => ({
+              id: item.product_id,
+              name: item.product_name,
+              price: item.price,
+              quantity: item.quantity,
+              image: orderData.items.find((i) => i.id === item.product_id)?.image || "/medicines/dolo-650.jpg",
+            }))
+          : orderData.items,
+        subtotal: createdServerOrder.subtotal,
+        deliveryFee: createdServerOrder.delivery_fee,
+        total: createdServerOrder.total,
+        paymentMethod: createdServerOrder.payment_method,
+        paymentStatus: createdServerOrder.payment_status,
+        paymentId: createdServerOrder.payment_id,
+        status: createdServerOrder.order_status,
+        order_status: createdServerOrder.order_status,
+        prescriptionRequired: createdServerOrder.prescription_required,
+        prescriptionStatus: createdServerOrder.prescription_status,
+        createdAt: createdServerOrder.created_at || new Date().toISOString(),
+      };
+
+      setOrders((prev) => [normalizedOrder, ...prev.filter((o) => (o.order_number || o.id) !== authoritativeOrderNumber)]);
+      setConfirmedOrder(normalizedOrder);
+      setActiveTrackingOrderId(authoritativeOrderNumber);
+      setCart([]);
+      setCheckoutOpen(false);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      showToast(`Order #${authoritativeOrderNumber} successfully placed in PostgreSQL database!`);
+
+      // Refresh complete orders list from server
+      refreshOrdersFromServer(true);
+    } catch (err) {
+      console.error("[ORDER PLACEMENT FAILED]", err);
+      showToast(`Order Failed: ${err.message || "Failed to create order in database"}`);
+      throw err;
+    } finally {
+      setIsSubmittingOrder(false);
+    }
   };
 
   // ==========================================
@@ -692,6 +744,7 @@ function App() {
           cart={cart}
           checkoutMeta={checkoutMeta}
           user={user}
+          isSubmitting={isSubmittingOrder}
           onBack={() => {
             setCheckoutOpen(false);
             setCartOpen(true);
@@ -808,6 +861,8 @@ function App() {
           products={products}
           prescriptions={prescriptions}
           user={user}
+          isSyncing={isSyncingOrders}
+          onRefreshOrders={() => refreshOrdersFromServer(false)}
           onUpdateOrderStatus={handleUpdateOrderStatus}
           onAdjustStock={handleAdjustStock}
           onReviewPrescription={handleReviewPrescription}
@@ -822,6 +877,8 @@ function App() {
           orders={orders}
           products={products}
           analytics={analyticsData}
+          isSyncing={isSyncingOrders}
+          onRefreshOrders={() => refreshOrdersFromServer(false)}
           onUpdateOrderStatus={handleUpdateOrderStatus}
           onAddProduct={handleAddProduct}
           onEditProduct={handleEditProduct}

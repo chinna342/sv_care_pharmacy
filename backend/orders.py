@@ -1,3 +1,5 @@
+import json
+import logging
 from decimal import Decimal
 from typing import List, Optional
 from uuid import uuid4
@@ -30,6 +32,15 @@ from jwt_handler import (
     get_current_user_optional,
     require_pharmacist_or_admin
 )
+
+# Configure production logger
+logger = logging.getLogger("svcare.orders")
+logger.setLevel(logging.INFO)
+if not logger.handlers:
+    ch = logging.StreamHandler()
+    formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] [SVCARE_PROD_ORDER] %(message)s')
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
 
 router = APIRouter(
     prefix="/orders",
@@ -70,6 +81,20 @@ def log_status_change(
     )
     db.add(history)
 
+    # Structured server log for status transition
+    logger.info(
+        json.dumps({
+            "event": "ORDER_STATUS_CHANGED",
+            "order_id": order.id,
+            "order_number": order.order_number,
+            "previous_status": prev_status,
+            "new_status": new_status,
+            "changed_by": user.name if user else "System",
+            "user_role": user.role if user else "SYSTEM",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+    )
+
     # In-App Customer Notification
     if order.user_id:
         status_readable = new_status.replace("_", " ").title()
@@ -81,6 +106,16 @@ def log_status_change(
             order_id=order.id
         )
         db.add(notif)
+        logger.info(
+            json.dumps({
+                "event": "NOTIFICATION_SENT",
+                "user_id": order.user_id,
+                "order_id": order.id,
+                "order_number": order.order_number,
+                "notification_type": "ORDER_UPDATE",
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+        )
 
 
 # ============================================================
@@ -103,145 +138,209 @@ def create_order(
             detail="Order must contain at least one medicine"
         )
 
-    # 1. Create Delivery Address
-    address = Address(
-        user_id=current_user.id if current_user else None,
-        name=order_data.name.strip(),
-        phone=order_data.phone.strip(),
-        house=order_data.house.strip(),
-        area=order_data.area.strip(),
-        city=order_data.city.strip(),
-        pincode=order_data.pincode.strip(),
-    )
-    db.add(address)
-    db.flush()
-
-    # 2. Recalculate Subtotal & Verify Stock with Row Locking
-    subtotal = Decimal("0.00")
-    order_items_to_create = []
-    requires_rx = False
-
-    for item_data in order_data.items:
-        # SELECT ... FOR UPDATE ensures race conditions / overselling are prevented
-        product = (
-            db.query(Product)
-            .filter(Product.id == item_data.product_id, Product.is_active == True)
-            .with_for_update()
-            .first()
-        )
-
-        if not product:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Medicine ID {item_data.product_id} is no longer available"
-            )
-
-        if product.stock < item_data.quantity:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Insufficient stock for {product.name}. Available: {product.stock}, requested: {item_data.quantity}"
-            )
-
-        if product.prescription_required:
-            requires_rx = True
-
-        item_subtotal = Decimal(str(product.price)) * item_data.quantity
-        subtotal += item_subtotal
-
-        order_item = OrderItem(
-            product_id=product.id,
-            product_name=product.name,
-            price=product.price,
-            quantity=item_data.quantity,
-            subtotal=item_subtotal,
-        )
-        order_items_to_create.append((order_item, product))
-
-    # 3. Dynamic Delivery Fee
-    delivery_fee = Decimal("0.00") if subtotal >= Decimal("500.00") else Decimal("40.00")
-    total = subtotal + delivery_fee
-
-    # 4. Generate Order Identifier
-    order_number = "SV" + uuid4().hex[:8].upper()
-
-    payment_status = "paid" if order_data.payment_id and "COD" not in order_data.payment_id else "pending"
-    initial_status = "PENDING_PHARMACIST_REVIEW"
-
-    rx_status = "NOT_REQUIRED"
-    if requires_rx:
-        rx_status = "PENDING_REVIEW" if order_data.prescription_uploaded else "UPLOAD_REQUIRED"
-
-    order = Order(
-        order_number=order_number,
-        user_id=current_user.id if current_user else None,
-        address_id=address.id,
-        payment_method=order_data.payment_method,
-        payment_status=payment_status,
-        order_status=initial_status,
-        subtotal=subtotal,
-        delivery_fee=delivery_fee,
-        total=total,
-        payment_id=order_data.payment_id,
-        payment_signature=order_data.payment_signature,
-        gateway_name=order_data.gateway_name or "SV Care Gateway",
-        prescription_required=requires_rx,
-        prescription_status=rx_status,
-        paid_at=datetime.now(timezone.utc) if payment_status == "paid" else None
-    )
-    db.add(order)
-    db.flush()
-
-    # 5. Deduct Stock & Record Movement
-    for order_item, product in order_items_to_create:
-        order_item.order_id = order.id
-        db.add(order_item)
-
-        # Deduct product stock
-        prev_stock = product.stock
-        product.stock -= order_item.quantity
-
-        # Update or create Inventory record
-        inv = db.query(Inventory).filter(Inventory.product_id == product.id).first()
-        if inv:
-            inv.available_quantity = product.stock
-            inv.sold_quantity += order_item.quantity
-            inv.status = "OUT_OF_STOCK" if product.stock <= 0 else ("LOW_STOCK" if product.stock <= inv.reorder_level else "IN_STOCK")
-            
-            # Stock Movement Record
-            movement = StockMovement(
-                inventory_id=inv.id,
-                product_id=product.id,
-                movement_type="STOCK_RESERVED",
-                quantity=order_item.quantity,
-                previous_qty=prev_stock,
-                new_qty=product.stock,
-                reason=f"Order {order.order_number} reservation",
-                reference_id=order.order_number,
-                user_id=current_user.id if current_user else None
-            )
-            db.add(movement)
-
-    # 6. Initial Status History
-    log_status_change(
-        order=order,
-        prev_status=None,
-        new_status=initial_status,
-        user=current_user,
-        reason="Order placed by customer and waiting for clinical pharmacist review.",
-        db=db
-    )
-
     try:
+        # Check if user exists by phone if not authenticated
+        effective_user_id = current_user.id if current_user else None
+        if not effective_user_id and order_data.phone:
+            clean_phone = order_data.phone.strip()
+            existing_user = db.query(User).filter(User.phone == clean_phone).first()
+            if existing_user:
+                effective_user_id = existing_user.id
+            else:
+                # Auto-create customer account so orders are permanently stored & accessible in PostgreSQL
+                new_customer = User(
+                    phone=clean_phone,
+                    name=order_data.name.strip() or "Valued Customer",
+                    role="CUSTOMER",
+                    is_active=True,
+                    is_verified=True
+                )
+                db.add(new_customer)
+                db.flush()
+                effective_user_id = new_customer.id
+
+        # 1. Create Delivery Address
+        address = Address(
+            user_id=effective_user_id,
+            name=order_data.name.strip(),
+            phone=order_data.phone.strip(),
+            house=order_data.house.strip(),
+            area=order_data.area.strip(),
+            city=order_data.city.strip(),
+            pincode=order_data.pincode.strip(),
+        )
+        db.add(address)
+        db.flush()
+
+        # 2. Recalculate Subtotal & Verify Stock with Row Locking
+        subtotal = Decimal("0.00")
+        order_items_to_create = []
+        requires_rx = False
+
+        for item_data in order_data.items:
+            # SELECT ... FOR UPDATE ensures race conditions / overselling are prevented
+            product = (
+                db.query(Product)
+                .filter(Product.id == item_data.product_id, Product.is_active == True)
+                .with_for_update()
+                .first()
+            )
+
+            if not product:
+                error_msg = f"Medicine ID {item_data.product_id} is no longer available"
+                logger.error(
+                    json.dumps({
+                        "event": "ORDER_FAILED",
+                        "reason": error_msg,
+                        "phone": order_data.phone.strip(),
+                        "timestamp": datetime.now(timezone.utc).isoformat()
+                    })
+                )
+                raise HTTPException(status_code=404, detail=error_msg)
+
+            if product.stock < item_data.quantity:
+                error_msg = f"Insufficient stock for {product.name}. Available: {product.stock}, requested: {item_data.quantity}"
+                logger.error(
+                    json.dumps({
+                        "event": "ORDER_FAILED",
+                        "reason": error_msg,
+                        "product_id": product.id,
+                        "product_name": product.name,
+                        "available_stock": product.stock,
+                        "requested_quantity": item_data.quantity,
+                        "phone": order_data.phone.strip(),
+                        "timestamp": datetime.now(timezone.utc).isoformat()
+                    })
+                )
+                raise HTTPException(status_code=400, detail=error_msg)
+
+            if product.prescription_required:
+                requires_rx = True
+
+            item_subtotal = Decimal(str(product.price)) * item_data.quantity
+            subtotal += item_subtotal
+
+            order_item = OrderItem(
+                product_id=product.id,
+                product_name=product.name,
+                price=product.price,
+                quantity=item_data.quantity,
+                subtotal=item_subtotal,
+            )
+            order_items_to_create.append((order_item, product))
+
+        # 3. Dynamic Delivery Fee
+        delivery_fee = Decimal("0.00") if subtotal >= Decimal("500.00") else Decimal("40.00")
+        total = subtotal + delivery_fee
+
+        # 4. Generate Order Identifier (Authoritative server generation)
+        order_number = "SV" + uuid4().hex[:8].upper()
+
+        payment_status = "paid" if order_data.payment_id and "COD" not in order_data.payment_id else "pending"
+        initial_status = "PENDING_PHARMACIST_REVIEW"
+
+        rx_status = "NOT_REQUIRED"
+        if requires_rx:
+            rx_status = "PENDING_REVIEW" if order_data.prescription_uploaded else "UPLOAD_REQUIRED"
+
+        order = Order(
+            order_number=order_number,
+            user_id=effective_user_id,
+            address_id=address.id,
+            payment_method=order_data.payment_method,
+            payment_status=payment_status,
+            order_status=initial_status,
+            subtotal=subtotal,
+            delivery_fee=delivery_fee,
+            total=total,
+            payment_id=order_data.payment_id,
+            payment_signature=order_data.payment_signature,
+            gateway_name=order_data.gateway_name or "SV Care Gateway",
+            prescription_required=requires_rx,
+            prescription_status=rx_status,
+            paid_at=datetime.now(timezone.utc) if payment_status == "paid" else None
+        )
+        db.add(order)
+        db.flush()
+
+        # 5. Deduct Stock & Record Movement
+        for order_item, product in order_items_to_create:
+            order_item.order_id = order.id
+            db.add(order_item)
+
+            # Deduct product stock
+            prev_stock = product.stock
+            product.stock -= order_item.quantity
+
+            # Update or create Inventory record
+            inv = db.query(Inventory).filter(Inventory.product_id == product.id).first()
+            if inv:
+                inv.available_quantity = product.stock
+                inv.sold_quantity += order_item.quantity
+                inv.status = "OUT_OF_STOCK" if product.stock <= 0 else ("LOW_STOCK" if product.stock <= inv.reorder_level else "IN_STOCK")
+                
+                # Stock Movement Record
+                movement = StockMovement(
+                    inventory_id=inv.id,
+                    product_id=product.id,
+                    movement_type="STOCK_RESERVED",
+                    quantity=order_item.quantity,
+                    previous_qty=prev_stock,
+                    new_qty=product.stock,
+                    reason=f"Order {order.order_number} reservation",
+                    reference_id=order.order_number,
+                    user_id=effective_user_id
+                )
+                db.add(movement)
+
+        # 6. Initial Status History
+        log_status_change(
+            order=order,
+            prev_status=None,
+            new_status=initial_status,
+            user=current_user,
+            reason="Order placed by customer and waiting for clinical pharmacist review.",
+            db=db
+        )
+
         db.commit()
         db.refresh(order)
+
+        # Structured production server log for successful order creation
+        logger.info(
+            json.dumps({
+                "event": "ORDER_CREATED",
+                "order_id": order.id,
+                "order_number": order.order_number,
+                "customer_id": effective_user_id,
+                "total_amount": float(order.total),
+                "items_count": len(order.items),
+                "payment_method": order.payment_method,
+                "payment_status": order.payment_status,
+                "prescription_required": order.prescription_required,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+        )
+
+        return order
+
+    except HTTPException:
+        db.rollback()
+        raise
     except Exception as exc:
         db.rollback()
+        logger.error(
+            json.dumps({
+                "event": "ORDER_FAILED",
+                "reason": str(exc),
+                "phone": order_data.phone.strip() if hasattr(order_data, "phone") else "unknown",
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+        )
         raise HTTPException(
             status_code=500,
             detail=f"Failed to securely create order: {str(exc)}"
         )
-
-    return order
 
 
 # ============================================================

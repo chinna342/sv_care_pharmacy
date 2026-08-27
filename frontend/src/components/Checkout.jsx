@@ -6,6 +6,7 @@ function Checkout({
   user = null,
   onBack,
   onPlaceOrder,
+  isSubmitting = false,
 }) {
   const [form, setForm] = useState({
     name: user?.name || "",
@@ -21,6 +22,7 @@ function Checkout({
   const [prescriptionFile, setPrescriptionFile] = useState(null);
   const [prescriptionUploaded, setPrescriptionUploaded] = useState(false);
   const [errors, setErrors] = useState({});
+  const [localSubmitting, setLocalSubmitting] = useState(false);
 
   const subtotal = checkoutMeta.subtotal || cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const discountAmount = checkoutMeta.discountAmount || 0;
@@ -54,33 +56,39 @@ function Checkout({
     return Object.keys(err).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting || localSubmitting) return;
     if (!validate()) return;
 
+    setLocalSubmitting(true);
     const isCod = form.paymentMethod === "cod";
     const paymentId = isCod
       ? "COD_" + Math.random().toString(36).substring(2, 10).toUpperCase()
       : "PAY_UPI_" + Math.random().toString(36).substring(2, 10).toUpperCase();
 
-    onPlaceOrder({
-      customer: form,
-      subtotal,
-      discountAmount,
-      deliveryFee,
-      total,
-      items: cart,
-      autoRefill: checkoutMeta.autoRefill || false,
-      deliverySlot: form.deliverySlot,
-      paymentMethod: form.paymentMethod,
-      paymentId,
-      transactionRef: "TXN_" + Date.now(),
-      gatewayName: isCod ? "Cash on Delivery" : "SV Care Instant UPI Gateway",
-      paidAt: isCod ? null : new Date().toISOString(),
-      paymentStatus: isCod ? "pending" : "paid",
-      prescriptionUploaded,
-      prescriptionFileName: prescriptionFile?.name || (hasRxItem ? "Prescription_Attached.pdf" : null),
-    });
+    try {
+      await onPlaceOrder({
+        customer: form,
+        subtotal,
+        discountAmount,
+        deliveryFee,
+        total,
+        items: cart,
+        autoRefill: checkoutMeta.autoRefill || false,
+        deliverySlot: form.deliverySlot,
+        paymentMethod: form.paymentMethod,
+        paymentId,
+        transactionRef: "TXN_" + Date.now(),
+        gatewayName: isCod ? "Cash on Delivery" : "SV Care Instant UPI Gateway",
+        paidAt: isCod ? null : new Date().toISOString(),
+        paymentStatus: isCod ? "pending" : "paid",
+        prescriptionUploaded,
+        prescriptionFileName: prescriptionFile?.name || (hasRxItem ? "Prescription_Attached.pdf" : null),
+      });
+    } finally {
+      setLocalSubmitting(false);
+    }
   };
 
   const inputClass = (field) =>
@@ -470,14 +478,28 @@ function Checkout({
             {/* Place Order CTA */}
             <button
               type="submit"
-              className="w-full rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 py-4 text-xs font-black text-white shadow-xl shadow-emerald-600/25 transition hover:from-emerald-700 hover:to-teal-800 active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+              disabled={isSubmitting || localSubmitting}
+              className={`w-full rounded-2xl py-4 text-xs font-black text-white shadow-xl transition flex items-center justify-center gap-2 ${
+                isSubmitting || localSubmitting
+                  ? "bg-slate-400 cursor-not-allowed opacity-80"
+                  : "bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 shadow-emerald-600/25 hover:from-emerald-700 hover:to-teal-800 active:scale-95 cursor-pointer"
+              }`}
             >
-              <span>{form.paymentMethod === "cod" ? "💵" : "⚡"}</span>
-              <span>
-                {form.paymentMethod === "cod"
-                  ? `Confirm Order with Cash on Delivery (₹${total}) →`
-                  : `Pay & Place Order Now (₹${total}) →`}
-              </span>
+              {isSubmitting || localSubmitting ? (
+                <>
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+                  <span>Transacting with Production Database...</span>
+                </>
+              ) : (
+                <>
+                  <span>{form.paymentMethod === "cod" ? "💵" : "⚡"}</span>
+                  <span>
+                    {form.paymentMethod === "cod"
+                      ? `Confirm Order with Cash on Delivery (₹${total}) →`
+                      : `Pay & Place Order Now (₹${total}) →`}
+                  </span>
+                </>
+              )}
             </button>
 
             <div className="text-center text-[10px] text-slate-400 space-y-1">

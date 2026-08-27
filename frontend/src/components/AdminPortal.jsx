@@ -7,6 +7,8 @@ export default function AdminPortal({
   users = [],
   auditLogs = [],
   analytics = null,
+  isSyncing = false,
+  onRefreshOrders,
   onUpdateOrderStatus,
   onAddProduct,
   onEditProduct,
@@ -216,6 +218,28 @@ export default function AdminPortal({
             {tab.label}
           </button>
         ))}
+
+        {/* Live Production DB Sync Status & Manual Refresh */}
+        <div className="ml-auto flex items-center gap-3">
+          <div className="flex items-center gap-2 rounded-lg bg-indigo-950/60 border border-indigo-500/30 px-3 py-1.5 text-[11px] text-indigo-400">
+            <span className={`h-2 w-2 rounded-full ${isSyncing ? "bg-amber-400 animate-spin" : "bg-indigo-400 animate-pulse"}`}></span>
+            <span className="font-mono font-bold">
+              {isSyncing ? "Syncing PostgreSQL..." : "PostgreSQL Live Connected"}
+            </span>
+          </div>
+
+          {onRefreshOrders && (
+            <button
+              type="button"
+              onClick={onRefreshOrders}
+              disabled={isSyncing}
+              className="flex items-center gap-1.5 rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs font-bold text-slate-200 hover:bg-indigo-600 hover:text-white transition disabled:opacity-50 cursor-pointer"
+            >
+              <span className={isSyncing ? "animate-spin" : ""}>🔄</span>
+              <span>Sync Orders</span>
+            </button>
+          )}
+        </div>
       </nav>
 
       {/* 3. MAIN CONTENT AREA */}
