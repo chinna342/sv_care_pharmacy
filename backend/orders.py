@@ -34,6 +34,7 @@ from jwt_handler import (
 )
 from ws_manager import ws_manager
 from cache import cache
+from email_service import send_order_confirmation_email
 
 # Configure production logger
 logger = logging.getLogger("svcare.orders")
