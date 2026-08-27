@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { categories } from "../data/categories";
-import NotificationBell from "./NotificationBell";
 
 function Navbar({
   cartCount = 0,
@@ -164,14 +163,8 @@ function Navbar({
             </div>
           )}
 
-          {/* Right: Notification Bell + User Login/Dropdown + Cart */}
+          {/* Right: User Login/Dropdown + Cart */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {/* Notification Bell */}
-            <NotificationBell
-              notifications={notifications}
-              onMarkAllRead={onMarkAllNotificationsRead}
-            />
-
             {/* User Login / Profile Button */}
             {!user ? (
               <button
