@@ -3,7 +3,23 @@
   "outputDirectory": "frontend/dist",
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/api/auth/send-email-otp",
+      "destination": "/api/send-email-otp"
+    },
+    {
+      "source": "/api/auth/verify-email-otp",
+      "destination": "/api/verify-email-otp"
+    },
+    {
+      "source": "/auth/send-email-otp",
+      "destination": "/api/send-email-otp"
+    },
+    {
+      "source": "/auth/verify-email-otp",
+      "destination": "/api/verify-email-otp"
+    },
+    {
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]
