@@ -12,13 +12,15 @@ from models import (
     OrderItem,
     Product,
     User,
-    UserRole
+    UserRole,
+    UserLoginLog
 )
 from schemas import (
     AuditLogResponse,
     DashboardAnalyticsResponse,
     UserResponse,
-    UserUpdateRole
+    UserUpdateRole,
+    LoginLogResponse
 )
 from jwt_handler import require_admin
 
@@ -51,6 +53,18 @@ def list_users(
         query = query.filter((User.name.ilike(search_fmt)) | (User.phone.ilike(search_fmt)) | (User.email.ilike(search_fmt)))
 
     return query.order_by(User.created_at.desc()).limit(limit).all()
+
+
+@router.get("/login-logs", response_model=List[LoginLogResponse])
+def list_login_logs(
+    limit: int = Query(default=100, le=500),
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(require_admin)
+):
+    """
+    List all user and staff login activity stored in PostgreSQL database. (Admin only)
+    """
+    return db.query(UserLoginLog).order_by(UserLoginLog.created_at.desc()).limit(limit).all()
 
 
 @router.put("/users/{user_id}/role", response_model=UserResponse)

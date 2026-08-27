@@ -69,6 +69,7 @@ class User(Base):
     is_active = Column(Boolean, nullable=False, default=True)
     is_verified = Column(Boolean, nullable=False, default=True)
     avatar = Column(String(500), nullable=True)
+    last_login_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -80,6 +81,7 @@ class User(Base):
     customer_profile = relationship("CustomerProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
     pharmacist_profile = relationship("PharmacistProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
     delivery_profile = relationship("DeliveryProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    login_logs = relationship("UserLoginLog", back_populates="user", cascade="all, delete-orphan", order_by="UserLoginLog.created_at.desc()")
 
 
 class CustomerProfile(Base):
@@ -425,3 +427,25 @@ class AuditLog(Base):
     new_value = Column(Text, nullable=True)
     ip_address = Column(String(50), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+# ============================================================
+# USER LOGIN LOGS
+# ============================================================
+
+class UserLoginLog(Base):
+    __tablename__ = "user_login_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    email = Column(String(150), nullable=True, index=True)
+    phone = Column(String(30), nullable=True)
+    name = Column(String(100), nullable=True)
+    role = Column(String(30), nullable=False, default="CUSTOMER")
+    method = Column(String(30), nullable=False, default="GMAIL_OTP") # GMAIL_OTP, PHONE_OTP, PASSWORD
+    ip_address = Column(String(60), nullable=True)
+    user_agent = Column(String(255), nullable=True)
+    status = Column(String(20), nullable=False, default="SUCCESS")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="login_logs")

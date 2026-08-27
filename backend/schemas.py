@@ -504,3 +504,24 @@ class PaymentVerifyResponse(BaseModel):
     payment_id: str
     transaction_ref: str
     verified_at: str
+
+
+# ============================================================
+# LOGIN LOG SCHEMAS
+# ============================================================
+
+class LoginLogResponse(BaseModel):
+    id: int
+    user_id: Optional[int] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    name: Optional[str] = None
+    role: str
+    method: str
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    status: str
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True

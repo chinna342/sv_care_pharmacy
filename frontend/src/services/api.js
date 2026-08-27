@@ -256,5 +256,7 @@ export const adminApi = {
   getAuditLogs: (entity = null) =>
     apiRequest(`/admin/audit-logs${entity ? `?entity=${entity}` : ""}`),
 
+  getLoginLogs: () => apiRequest("/admin/login-logs"),
+
   getAnalytics: () => apiRequest("/admin/analytics"),
 };

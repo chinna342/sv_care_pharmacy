@@ -1,8 +1,9 @@
 import os
 import random
 import time
+from datetime import datetime, timezone
 from typing import Optional, Dict
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Request
 import requests
 import smtplib
 from email.mime.text import MIMEText
@@ -13,7 +14,7 @@ load_dotenv()
 
 from sqlalchemy.orm import Session
 from database import get_db
-from models import User, UserRole, AuditLog
+from models import User, UserRole, AuditLog, UserLoginLog
 from schemas import (
     SendEmailOtpRequest,
     SendEmailOtpResponse,
@@ -228,6 +229,20 @@ def verify_email_otp(
             user.name = "Chinna Venkatarao"
             db.commit()
 
+    # Update last login timestamp and record database login log
+    user.last_login_at = datetime.now(timezone.utc)
+    login_log = UserLoginLog(
+        user_id=user.id,
+        email=user.email,
+        phone=user.phone,
+        name=user.name,
+        role=user.role,
+        method="GMAIL_OTP",
+        status="SUCCESS"
+    )
+    db.add(login_log)
+    db.commit()
+
     # Issue cryptographic JWT
     token_payload = {
         "sub": str(user.id),
@@ -356,6 +371,20 @@ def verify_otp(
             user.name = "Chinna Venkatarao"
             user.email = "venkatc283@gmail.com"
             db.commit()
+
+    # Update last login timestamp and record database login log
+    user.last_login_at = datetime.now(timezone.utc)
+    login_log = UserLoginLog(
+        user_id=user.id,
+        email=user.email,
+        phone=user.phone,
+        name=user.name,
+        role=user.role,
+        method="PHONE_OTP",
+        status="SUCCESS"
+    )
+    db.add(login_log)
+    db.commit()
 
     # Issue cryptographic JWT
     token_payload = {
@@ -489,6 +518,20 @@ def admin_login(
             )
         if user.role not in ["ADMIN", "PHARMACIST"]:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied. Staff credentials required.")
+
+    # Update last login timestamp and record database login log
+    user.last_login_at = datetime.now(timezone.utc)
+    login_log = UserLoginLog(
+        user_id=user.id,
+        email=user.email,
+        phone=user.phone,
+        name=user.name,
+        role=user.role,
+        method="PASSWORD",
+        status="SUCCESS"
+    )
+    db.add(login_log)
+    db.commit()
 
     jwt_token = create_access_token({
         "sub": str(user.id),
