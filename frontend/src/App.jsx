@@ -20,6 +20,7 @@ import TaxInvoiceModal from "./components/TaxInvoiceModal";
 import defaultProducts from "./data/products";
 import { categories } from "./data/categories";
 import { soundEffects } from "./services/soundEffects";
+import { cloudOrdersService } from "./services/cloudOrders";
 import {
   productsApi,
   ordersApi,
@@ -203,7 +204,7 @@ function App() {
     }
   };
 
-  // Initial load and periodic 3.5-second polling for real-time order arrival
+  // Initial load, real-time Cloud Firestore subscription, and periodic polling
   useEffect(() => {
     refreshOrdersFromServer(true);
 
@@ -211,11 +212,39 @@ function App() {
       adminApi.getAnalytics().then((res) => setAnalyticsData(res)).catch(() => {});
     }
 
+    // Real-time Cloud WebSocket multi-device sync
+    const unsubscribeCloud = cloudOrdersService.subscribe((cloudOrders) => {
+      if (Array.isArray(cloudOrders) && cloudOrders.length > 0) {
+        setOrders((prev) => {
+          const prevIds = new Set(prev.map((o) => o.order_number || o.id));
+          const incoming = cloudOrders.filter((o) => !prevIds.has(o.order_number || o.id));
+
+          if ((isPharmacist || isAdmin) && incoming.length > 0 && prev.length > 0) {
+            soundEffects.playNormalOrderChime();
+            showToast(`🔔 New Order #${incoming[0].order_number || incoming[0].id} Received from Customer!`);
+          }
+
+          const cloudMap = new Map(cloudOrders.map((o) => [o.order_number || o.id, o]));
+          const merged = [...cloudOrders];
+          prev.forEach((p) => {
+            const key = p.order_number || p.id;
+            if (!cloudMap.has(key)) merged.push(p);
+          });
+
+          localStorage.setItem("svcare_orders_history_v3", JSON.stringify(merged));
+          return merged;
+        });
+      }
+    });
+
     const interval = setInterval(() => {
       refreshOrdersFromServer(true);
     }, 3500);
 
-    return () => clearInterval(interval);
+    return () => {
+      if (unsubscribeCloud) unsubscribeCloud();
+      clearInterval(interval);
+    };
   }, [user, isAdmin, isPharmacist]);
 
   // ==========================================
@@ -323,8 +352,11 @@ function App() {
     );
     showToast(`Order #${orderId} transitioned to ${newStatus.replace(/_/g, " ")}`);
 
-    // 2. Backend sync
-    const numId = typeof orderId === "number" ? orderId : parseInt(orderId.replace(/\D/g, ""), 10);
+    // 2. Real-time multi-device Cloud Firestore sync
+    cloudOrdersService.updateStatus(orderId, newStatus, reason, rejectionReason);
+
+    // 3. PostgreSQL backend sync
+    const numId = typeof orderId === "number" ? orderId : parseInt(String(orderId).replace(/\D/g, ""), 10);
     if (numId) {
       ordersApi
         .updateStatus(numId, newStatus, reason, rejectionReason)
@@ -630,6 +662,9 @@ function App() {
         setCart([]);
         setCheckoutOpen(false);
         window.scrollTo({ top: 0, behavior: "smooth" });
+
+        // Broadcast to all connected Pharmacist, Admin, and Delivery devices in real time
+        cloudOrdersService.saveOrder(normalizedOrder).catch(() => {});
 
         try {
           const currentHistory = JSON.parse(localStorage.getItem("svcare_orders_history_v3") || "[]");
