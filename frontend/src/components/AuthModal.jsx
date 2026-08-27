@@ -199,20 +199,6 @@ function AuthModal({ isOpen, onClose, onLoginSuccess }) {
     }
   };
 
-  // Auto-Fill Admin Credentials (Chinna Venkatarao)
-  const fillAdmin = () => {
-    setEmail("venkatc283@gmail.com");
-    setFullName("Chinna Venkatarao");
-    setError("");
-  };
-
-  // Auto-Fill Patient Credentials
-  const fillPatient = () => {
-    setEmail("patient@gmail.com");
-    setFullName("Venkat Reddy");
-    setError("");
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-md animate-fade-in">
       <div className="relative w-full max-w-xl overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 flex flex-col md:flex-row">
@@ -316,7 +302,7 @@ function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="e.g. yourname@gmail.com"
+                      placeholder="Enter your Gmail address"
                       className="w-full rounded-2xl border border-slate-300 bg-white pl-10 pr-3.5 py-3 text-xs font-bold text-slate-900 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 shadow-xs"
                       required
                       autoFocus
@@ -332,27 +318,9 @@ function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                     type="text"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    placeholder="e.g. Venkat Reddy"
+                    placeholder="Enter your full name"
                     className="w-full rounded-2xl border border-slate-300 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-900 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 shadow-xs"
                   />
-                </div>
-
-                {/* Quick Auto-Fill buttons for testing */}
-                <div className="pt-1 flex flex-wrap gap-2 text-[10px]">
-                  <button
-                    type="button"
-                    onClick={fillAdmin}
-                    className="rounded-lg bg-amber-50 border border-amber-200 px-2.5 py-1 font-extrabold text-amber-800 hover:bg-amber-100 transition active:scale-95"
-                  >
-                    👨‍⚕️ Auto-Fill Admin (venkatc283@gmail.com)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={fillPatient}
-                    className="rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1 font-bold text-emerald-800 hover:bg-emerald-100 transition active:scale-95"
-                  >
-                    ⚡ Auto-Fill Patient
-                  </button>
                 </div>
 
                 <button
@@ -417,8 +385,8 @@ function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                   ))}
                 </div>
 
-                {/* Quick Auto Fill & Resend */}
-                <div className="flex items-center justify-between text-[11px] pt-1">
+                {/* Resend Timer */}
+                <div className="flex items-center justify-center text-[11px] pt-1">
                   {canResend ? (
                     <button
                       type="button"
@@ -429,21 +397,8 @@ function AuthModal({ isOpen, onClose, onLoginSuccess }) {
                     </button>
                   ) : (
                     <span className="text-slate-400 font-medium">
-                      ⏱️ Resend in {countdown}s
+                      ⏱️ Resend code in {countdown}s
                     </span>
-                  )}
-
-                  {activeOtpCode && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setOtpDigits(activeOtpCode.split(""));
-                        handleVerifyOtp(activeOtpCode);
-                      }}
-                      className="rounded-lg bg-emerald-100 border border-emerald-300 px-2.5 py-1 text-emerald-900 font-black hover:bg-emerald-200 transition"
-                    >
-                      ⚡ Auto-Fill ({activeOtpCode})
-                    </button>
                   )}
                 </div>
 
