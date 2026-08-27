@@ -19,6 +19,7 @@ import TaxInvoiceModal from "./components/TaxInvoiceModal";
 // Datasets & API Service
 import defaultProducts from "./data/products";
 import { categories } from "./data/categories";
+import { soundEffects } from "./services/soundEffects";
 import {
   productsApi,
   ordersApi,
@@ -186,7 +187,8 @@ function App() {
             const prevIds = new Set(prev.map((o) => o.order_number || o.id));
             const incomingOrders = data.filter((o) => !prevIds.has(o.order_number || o.id));
             if (incomingOrders.length > 0) {
-              showToast(`🔔 ${incomingOrders.length} New Order(s) Received from Customer Devices!`);
+              soundEffects.playNormalOrderChime();
+              showToast(`🔔 ${incomingOrders.length} New Order(s) Received for Pharmacist Verification!`);
             }
           }
           return merged;
@@ -201,7 +203,7 @@ function App() {
     }
   };
 
-  // Initial load and periodic 6-second polling for real-time order arrival
+  // Initial load and periodic 3.5-second polling for real-time order arrival
   useEffect(() => {
     refreshOrdersFromServer(true);
 
@@ -211,7 +213,7 @@ function App() {
 
     const interval = setInterval(() => {
       refreshOrdersFromServer(true);
-    }, 6000);
+    }, 3500);
 
     return () => clearInterval(interval);
   }, [user, isAdmin, isPharmacist]);

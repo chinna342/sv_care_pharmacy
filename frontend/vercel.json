@@ -17,6 +17,14 @@
       "destination": "/api/verify-email-otp"
     },
     {
+      "source": "/api/orders/:path*",
+      "destination": "/api/orders"
+    },
+    {
+      "source": "/orders/:path*",
+      "destination": "/api/orders"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
