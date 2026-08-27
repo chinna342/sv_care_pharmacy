@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getTallManName, getDosageBadge } from "../utils/lasaDrugs";
 
 function ProductDetailModal({ product, onClose, onAddToCart }) {
   const [activeTab, setActiveTab] = useState("overview");
@@ -80,9 +81,16 @@ function ProductDetailModal({ product, onClose, onAddToCart }) {
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
                 {product.manufacturer || "SV Care Certified Lab"}
               </p>
-              <h2 className="text-2xl font-extrabold text-slate-800 mt-0.5">
-                {product.name}
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-2xl font-extrabold text-slate-800 mt-0.5">
+                  {getTallManName(product.name)}
+                </h2>
+                {getTallManName(product.name) !== product.name && (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-300">
+                    LASA Tall-Man
+                  </span>
+                )}
+              </div>
               {product.genericName && (
                 <p className="mt-1 text-xs font-semibold text-emerald-700">
                   🔬 Active Salt: <span className="text-slate-700">{product.genericName}</span>

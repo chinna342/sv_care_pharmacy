@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getTallManName, getDosageBadge } from "../utils/lasaDrugs";
 
 function ProductCard({
   product,
@@ -27,6 +28,8 @@ function ProductCard({
   const isOutOfStock = stock <= 0;
   const isInCart = cartQuantity > 0;
   const savings = mrp && mrp > price ? mrp - price : 0;
+  const tallManName = getTallManName(name);
+  const dosageBadge = getDosageBadge(form);
 
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs transition-all duration-200 hover:border-emerald-300 hover:shadow-md">
@@ -86,9 +89,9 @@ function ProductCard({
           <h3
             className="text-xs font-black text-slate-800 line-clamp-2 leading-snug group-hover:text-emerald-700 transition cursor-pointer"
             onClick={() => onOpenDetails && onOpenDetails(product)}
-            title={name}
+            title={tallManName}
           >
-            {name}
+            {tallManName}
           </h3>
           {genericName && (
             <p className="text-[10px] text-emerald-700 font-medium truncate mt-0.5">

@@ -15,7 +15,8 @@ from routes import (
     admin,
     prescriptions,
     notifications,
-    deliveries
+    deliveries,
+    websocket
 )
 import orders
 
@@ -68,6 +69,7 @@ app.include_router(notifications.router)
 app.include_router(payments.router)
 app.include_router(admin.router)
 app.include_router(deliveries.router)
+app.include_router(websocket.router)
 
 
 # ============================================================

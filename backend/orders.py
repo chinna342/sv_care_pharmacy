@@ -32,6 +32,8 @@ from jwt_handler import (
     get_current_user_optional,
     require_pharmacist_or_admin
 )
+from ws_manager import ws_manager
+from cache import cache
 
 # Configure production logger
 logger = logging.getLogger("svcare.orders")
@@ -322,6 +324,26 @@ def create_order(
             })
         )
 
+        # Invalidate product catalog cache due to stock reservation
+        cache.invalidate("products:")
+
+        # Real-time WebSocket dispatch broadcast to Pharmacist, Admin, Delivery & Customer
+        ws_manager.broadcast_sync(
+            "ORDER_CREATED",
+            {
+                "order_id": order.id,
+                "order_number": order.order_number,
+                "customer_id": effective_user_id,
+                "total": float(order.total),
+                "order_status": order.order_status,
+                "prescription_required": order.prescription_required,
+                "prescription_status": order.prescription_status,
+                "items_count": len(order.items),
+                "created_at": order.created_at.isoformat() if order.created_at else datetime.now(timezone.utc).isoformat()
+            },
+            channels=["pharmacist", "admin", "customer", "all"]
+        )
+
         return order
 
     except HTTPException:
@@ -487,6 +509,22 @@ def update_order_status(
 
     db.commit()
     db.refresh(order)
+
+    # Real-time WebSocket dispatch broadcast for status updates
+    ws_manager.broadcast_sync(
+        "ORDER_STATUS_CHANGED",
+        {
+            "order_id": order.id,
+            "order_number": order.order_number,
+            "previous_status": curr_status,
+            "new_status": target_status,
+            "user_role": user_role,
+            "user_id": current_user.id if current_user else None,
+            "reason": payload.reason or payload.rejection_reason or f"Status updated to {target_status}"
+        },
+        channels=["pharmacist", "admin", "delivery", "customer", "all"]
+    )
+
     return order
 
 

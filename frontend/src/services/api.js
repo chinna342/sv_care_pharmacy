@@ -29,10 +29,20 @@ export function getAuthToken() {
   return null;
 }
 
+export const getWsUrl = (channel = "all") => {
+  const wsProto = window.location.protocol === "https:" ? "wss:" : "ws:";
+  if (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_URL) {
+    const url = new URL(import.meta.env.VITE_API_URL);
+    return `${url.protocol === "https:" ? "wss:" : "ws:"}//${url.host}/ws/${channel}`;
+  }
+  return `${wsProto}//${window.location.hostname}:8000/ws/${channel}`;
+};
+
 /**
  * Universal fetch wrapper with authorization header.
  */
 export async function apiRequest(endpoint, options = {}) {
+  const token = getAuthToken();
   const headers = {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),

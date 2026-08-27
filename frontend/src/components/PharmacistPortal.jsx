@@ -1,4 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { realtimeWS } from "../services/websocket";
+import { soundEffects } from "../services/soundEffects";
+import { getTallManName, getDosageBadge } from "../utils/lasaDrugs";
 
 export default function PharmacistPortal({
   orders = [],
@@ -26,6 +29,78 @@ export default function PharmacistPortal({
   const [selectedRxForReview, setSelectedRxForReview] = useState(null);
   const [rxReviewNotes, setRxReviewNotes] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [wsConnected, setWsConnected] = useState(false);
+  const searchInputRef = useRef(null);
+
+  // ==========================================
+  // REAL-TIME WEBSOCKET SUBSCRIPTIONS & SOUND ALERTS
+  // ==========================================
+  useEffect(() => {
+    realtimeWS.connect("pharmacist");
+
+    const unsubStatus = realtimeWS.on("connection_status", (status) => {
+      setWsConnected(status.status === "connected");
+    });
+
+    const unsubOrderCreated = realtimeWS.on("ORDER_CREATED", (data) => {
+      if (data.prescription_required) {
+        soundEffects.playEmergencyChime();
+      } else {
+        soundEffects.playNormalOrderChime();
+      }
+      if (onRefreshOrders) {
+        onRefreshOrders();
+      }
+    });
+
+    const unsubStatusChanged = realtimeWS.on("ORDER_STATUS_CHANGED", () => {
+      if (onRefreshOrders) {
+        onRefreshOrders();
+      }
+    });
+
+    return () => {
+      unsubStatus();
+      unsubOrderCreated();
+      unsubStatusChanged();
+    };
+  }, [onRefreshOrders]);
+
+  // ==========================================
+  // PHARMACIST WORKSTATION KEYBOARD HOTKEYS
+  // [Space] Accept top pending or selected order
+  // [Enter] Proceed / Next step
+  // [F] or [/] Focus search bar
+  // ==========================================
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Don't trigger if typing in an input or textarea
+      if (["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName)) {
+        return;
+      }
+
+      if (e.key === "f" || e.key === "/") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      } else if (e.code === "Space") {
+        e.preventDefault();
+        if (selectedOrderForReview) {
+          handleAcceptOrder(selectedOrderForReview);
+        } else {
+          // Find first pending order
+          const firstPending = orders.find(
+            (o) => (o.status || o.order_status || "").toUpperCase().includes("PENDING")
+          );
+          if (firstPending) {
+            setSelectedOrderForReview(firstPending);
+          }
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedOrderForReview, orders]);
 
   // ==========================================
   // METRICS COMPUTATION
@@ -184,6 +259,30 @@ export default function PharmacistPortal({
         </div>
 
         <div className="flex items-center gap-4">
+          {/* Live WebSocket Status & Hotkey Indicators */}
+          <div className="hidden lg:flex items-center gap-3">
+            <div className="flex items-center gap-1.5 rounded-full bg-slate-800/80 px-2.5 py-1 border border-slate-700 text-[10px] font-bold">
+              <span className={`h-2 w-2 rounded-full ${wsConnected ? "bg-emerald-400 animate-pulse" : "bg-amber-400"}`}></span>
+              <span className={wsConnected ? "text-emerald-300" : "text-amber-300"}>
+                {wsConnected ? "LIVE WEBSOCKETS" : "CONNECTING..."}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => soundEffects.playNormalOrderChime()}
+              title="Test audio alert sound"
+              className="flex items-center gap-1 rounded-lg bg-slate-800 px-2 py-1 text-[10px] font-bold text-slate-300 hover:bg-slate-700 transition"
+            >
+              🔔 Sound Test
+            </button>
+
+            <div className="flex items-center gap-1 text-[10px] text-slate-400 bg-slate-800/50 px-2 py-1 rounded-md border border-slate-800">
+              <span className="bg-slate-700 text-slate-200 px-1 rounded font-mono">[Space]</span> Accept
+              <span className="ml-1 bg-slate-700 text-slate-200 px-1 rounded font-mono">[F]</span> Search
+            </div>
+          </div>
+
           <div className="hidden text-right sm:block">
             <p className="text-xs font-bold text-slate-200">
               {user?.name || "Dr. Rajesh Varma"}
@@ -538,11 +637,12 @@ export default function PharmacistPortal({
               </div>
 
               <input
+                ref={searchInputRef}
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search order ID, patient, phone..."
-                className="rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-1.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 w-64"
+                placeholder="Search order ID, patient, phone... (Press / or F)"
+                className="rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-1.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 w-72"
               />
             </div>
 
@@ -906,18 +1006,31 @@ export default function PharmacistPortal({
                 Prescribed Medicines ({selectedOrderForReview.items?.length || 0})
               </p>
               <div className="max-h-48 overflow-y-auto divide-y divide-slate-800 rounded-xl border border-slate-800 bg-slate-950">
-                {selectedOrderForReview.items?.map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-3 text-xs">
-                    <div>
-                      <p className="font-bold text-white">{item.name}</p>
-                      <p className="text-[10px] text-slate-400">{item.genericName || "Standard clinical formulation"}</p>
+                {selectedOrderForReview.items?.map((item, idx) => {
+                  const tallMan = getTallManName(item.name);
+                  const isLasa = tallMan !== item.name;
+                  return (
+                    <div key={idx} className="flex items-center justify-between p-3 text-xs">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-white tracking-wide">
+                            {tallMan}
+                          </p>
+                          {isLasa && (
+                            <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-black text-amber-300 border border-amber-500/30">
+                              LASA Tall-Man
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-0.5">{item.genericName || "Standard clinical formulation"}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-mono font-bold text-emerald-400">Qty: {item.quantity}</p>
+                        <p className="text-[10px] text-slate-500">₹{item.price * item.quantity}</p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-mono font-bold text-emerald-400">Qty: {item.quantity}</p>
-                      <p className="text-[10px] text-slate-500">₹{item.price * item.quantity}</p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 

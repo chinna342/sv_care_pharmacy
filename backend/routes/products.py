@@ -9,6 +9,7 @@ from jwt_handler import (
     get_current_user_optional,
     require_pharmacist_or_admin
 )
+from cache import cache
 
 router = APIRouter(
     prefix="/products",
@@ -164,6 +165,7 @@ def create_product(
 
     db.commit()
     db.refresh(product)
+    cache.invalidate("products:")
     return product
 
 
@@ -232,6 +234,7 @@ def update_product(
 
     db.commit()
     db.refresh(product)
+    cache.invalidate("products:")
     return product
 
 
@@ -271,6 +274,7 @@ def delete_product(
     )
     db.add(audit)
     db.commit()
+    cache.invalidate("products:")
 
     return {
         "success": True,

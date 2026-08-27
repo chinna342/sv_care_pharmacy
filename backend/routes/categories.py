@@ -10,6 +10,7 @@ from schemas import (
     CategoryResponse,
 )
 from jwt_handler import require_admin
+from cache import cache
 
 router = APIRouter(
     prefix="/categories",
@@ -101,6 +102,7 @@ def create_category(
 
     db.commit()
     db.refresh(category)
+    cache.invalidate("categories:")
     return category
 
 
@@ -145,6 +147,7 @@ def update_category(
 
     db.commit()
     db.refresh(category)
+    cache.invalidate("categories:")
     return category
 
 
@@ -182,6 +185,7 @@ def delete_category(
     db.add(audit)
 
     db.commit()
+    cache.invalidate("categories:")
     return {
         "success": True,
         "message": f"Category '{category.name}' deactivated successfully",

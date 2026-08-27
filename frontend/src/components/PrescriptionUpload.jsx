@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { samplePrescriptions } from "../data/healthData";
+import { compressImage } from "../utils/imageCompressor";
 
 function PrescriptionUpload({ onAddExtractedToCart, onClose }) {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -8,6 +9,7 @@ function PrescriptionUpload({ onAddExtractedToCart, onClose }) {
   const [extractedData, setExtractedData] = useState(null);
   const [selectedItems, setSelectedItems] = useState({});
   const [successToast, setSuccessToast] = useState(false);
+  const [compressionInfo, setCompressionInfo] = useState(null);
 
   const startScanSimulation = (rxData) => {
     setIsScanning(true);
@@ -33,14 +35,25 @@ function PrescriptionUpload({ onAddExtractedToCart, onClose }) {
     }, 180);
   };
 
-  const handleFileUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file.name);
-      // Auto-scan using first sample template with custom file name
+  const handleFileUpload = async (e) => {
+    const rawFile = e.target.files?.[0];
+    if (rawFile) {
+      const originalSize = (rawFile.size / 1024).toFixed(0);
+      let processedFile = rawFile;
+      if (rawFile.type.startsWith("image/")) {
+        try {
+          processedFile = await compressImage(rawFile, 1600, 1600, 0.82);
+          const compressedSize = (processedFile.size / 1024).toFixed(0);
+          setCompressionInfo(`Compressed ${originalSize}KB ➔ ${compressedSize}KB for instant upload`);
+        } catch {
+          // fallback
+        }
+      }
+      setSelectedFile(processedFile.name);
+      // Auto-scan using template with custom file name
       const customRx = {
         ...samplePrescriptions[0],
-        title: `Uploaded Rx: ${file.name}`,
+        title: `Uploaded Rx: ${processedFile.name}`,
       };
       startScanSimulation(customRx);
     }
@@ -149,8 +162,15 @@ function PrescriptionUpload({ onAddExtractedToCart, onClose }) {
               Supported formats: JPEG, PNG, WEBP, PDF (Max 15MB)
             </p>
             {selectedFile && (
-              <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1 text-xs font-bold text-emerald-800">
-                <span>📎 {selectedFile}</span>
+              <div className="mt-3 flex flex-col items-center gap-1.5">
+                <div className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-1 text-xs font-bold text-emerald-800">
+                  <span>📎 {selectedFile}</span>
+                </div>
+                {compressionInfo && (
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                    ⚡ {compressionInfo}
+                  </span>
+                )}
               </div>
             )}
           </div>
