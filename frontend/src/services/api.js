@@ -33,7 +33,6 @@ export function getAuthToken() {
  * Universal fetch wrapper with authorization header.
  */
 export async function apiRequest(endpoint, options = {}) {
-  const token = getAuthToken();
   const headers = {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -43,6 +42,12 @@ export async function apiRequest(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
   try {
     const response = await fetch(url, { ...options, headers });
+    const contentType = response.headers.get("content-type") || "";
+
+    if (contentType.includes("text/html")) {
+      throw new Error("Backend API unreachable on this host (received static HTML).");
+    }
+
     if (!response.ok) {
       let errorDetail = `Request failed with status ${response.status}`;
       try {
@@ -55,7 +60,7 @@ export async function apiRequest(endpoint, options = {}) {
     }
     return await response.json();
   } catch (err) {
-    console.error(`[API Error] ${options.method || "GET"} ${url}:`, err.message);
+    console.warn(`[API] ${options.method || "GET"} ${url} failed:`, err.message);
     throw err;
   }
 }
