@@ -10,14 +10,21 @@ export const cloudOrdersService = {
    */
   subscribe: (onOrdersUpdate, onError) => {
     try {
-      const q = query(collection(db, ORDERS_COLLECTION), orderBy("createdAt", "desc"));
+      const colRef = collection(db, ORDERS_COLLECTION);
       
       const unsubscribe = onSnapshot(
-        q,
+        colRef,
         (snapshot) => {
           const ordersList = [];
           snapshot.forEach((docSnap) => {
-            ordersList.push({ ...docSnap.data(), id: docSnap.id });
+            const data = docSnap.data();
+            ordersList.push({ ...data, id: docSnap.id });
+          });
+          // Sort client-side by date safely
+          ordersList.sort((a, b) => {
+            const dateA = new Date(a.createdAt || a.created_at || 0).getTime();
+            const dateB = new Date(b.createdAt || b.created_at || 0).getTime();
+            return dateB - dateA;
           });
           onOrdersUpdate(ordersList);
         },
@@ -42,13 +49,15 @@ export const cloudOrdersService = {
       const orderId = order.order_number || order.id || `SV${Date.now()}`;
       const docRef = doc(db, ORDERS_COLLECTION, orderId);
       
-      const cleanOrder = {
-        ...order,
-        id: orderId,
-        order_number: orderId,
-        createdAt: order.createdAt || order.created_at || new Date().toISOString(),
-        created_at: order.created_at || order.createdAt || new Date().toISOString(),
-      };
+      const cleanOrder = JSON.parse(
+        JSON.stringify({
+          ...order,
+          id: orderId,
+          order_number: orderId,
+          createdAt: order.createdAt || order.created_at || new Date().toISOString(),
+          created_at: order.created_at || order.createdAt || new Date().toISOString(),
+        })
+      );
 
       await setDoc(docRef, cleanOrder, { merge: true });
       return cleanOrder;

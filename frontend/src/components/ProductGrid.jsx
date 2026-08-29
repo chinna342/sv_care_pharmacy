@@ -47,40 +47,40 @@ function ProductGrid({
       : 0;
 
   return (
-    <section id="medicines" className="mx-auto max-w-7xl scroll-mt-24 px-4 pt-10 pb-4 sm:px-6 lg:px-8">
+    <section id="medicines" className="mx-auto max-w-7xl scroll-mt-24 px-3 sm:px-6 lg:px-8 pt-6 sm:pt-10 pb-24 md:pb-8">
       {/* Section Header */}
-      <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div className="mb-6 sm:mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-600">
+            <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.25em] text-emerald-600">
               Verified Pharmacy Inventory
             </p>
-            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] sm:text-[10px] font-bold text-emerald-800">
               ⚡ Live Stock
             </span>
           </div>
 
-          <h2 className="mt-1 text-3xl font-black tracking-tight text-slate-800 sm:text-4xl">
+          <h2 className="mt-1 text-2xl sm:text-4xl font-black tracking-tight text-slate-800">
             {selectedCategory === "All" ? "All Medicines & Healthcare" : selectedCategory}
           </h2>
 
-          <p className="mt-2 max-w-2xl text-xs sm:text-sm text-slate-500">
+          <p className="mt-1.5 max-w-2xl text-xs sm:text-sm text-slate-500">
             Certified pharmaceuticals, antibiotics, chronic illness therapies, and healthcare essentials.
           </p>
         </div>
 
         {/* Count & Reset */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {selectedCategory !== "All" && (
             <button
               type="button"
               onClick={onResetFilters}
-              className="text-xs font-bold text-emerald-700 hover:underline"
+              className="text-xs font-bold text-emerald-700 hover:underline cursor-pointer"
             >
               Reset to All
             </button>
           )}
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-extrabold text-emerald-800 shadow-xs flex items-center gap-2">
+          <div className="rounded-xl sm:rounded-2xl border border-emerald-200 bg-emerald-50 px-3 sm:px-4 py-1.5 sm:py-2 text-xs font-extrabold text-emerald-800 shadow-xs flex items-center gap-1.5 sm:gap-2">
             <span>💊</span>
             <span>
               Showing {Math.min(visibleProducts.length, products.length)} of {products.length} Medicines
@@ -91,23 +91,23 @@ function ProductGrid({
 
       {/* Grid */}
       {products.length === 0 ? (
-        <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center shadow-sm">
-          <div className="text-5xl">🔍</div>
-          <h3 className="mt-4 text-xl font-extrabold text-slate-800">No medicines matched your query</h3>
+        <div className="rounded-3xl border border-slate-200 bg-white p-8 sm:p-12 text-center shadow-sm">
+          <div className="text-4xl sm:text-5xl">🔍</div>
+          <h3 className="mt-3 sm:mt-4 text-lg sm:text-xl font-extrabold text-slate-800">No medicines matched your query</h3>
           <p className="mt-2 text-xs text-slate-500 max-w-md mx-auto">
             Try searching for a different generic salt (e.g. Paracetamol, Metformin), health symptom, or reset the filters.
           </p>
           <button
             type="button"
             onClick={onResetFilters}
-            className="mt-6 rounded-xl bg-emerald-600 px-6 py-3 text-xs font-bold text-white hover:bg-emerald-700"
+            className="mt-5 rounded-xl bg-emerald-600 px-5 sm:px-6 py-2.5 sm:py-3 text-xs font-bold text-white hover:bg-emerald-700 cursor-pointer"
           >
             Show All Medicines
           </button>
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-4">
             {visibleProducts.map((product) => {
               const cartItem = cart.find(
                 (item) => item.id === product.id && item.name === product.name

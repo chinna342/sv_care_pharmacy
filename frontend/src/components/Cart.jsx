@@ -380,7 +380,7 @@ function Cart({
 
         {/* 7. Bottom Sticky CTA Button */}
         {cart.length > 0 && (
-          <div className="border-t border-slate-200 bg-white p-4 shadow-lg">
+          <div className="border-t border-slate-200 bg-white p-4 pb-safe shadow-lg">
             {!user ? (
               /* If unauthenticated -> Prominent Login to Proceed button (Zepto Style) */
               <button

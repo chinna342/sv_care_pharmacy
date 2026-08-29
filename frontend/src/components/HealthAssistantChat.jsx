@@ -88,7 +88,7 @@ function HealthAssistantChat({ isOpen, onClose, onAddToCart }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex h-[620px] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-emerald-200 bg-white shadow-2xl">
+    <div className="fixed inset-x-0 bottom-0 sm:inset-auto sm:bottom-6 sm:right-6 z-50 flex h-[85vh] sm:h-[620px] w-full sm:max-w-md flex-col overflow-hidden rounded-t-3xl sm:rounded-3xl border border-emerald-200 bg-white shadow-2xl pb-safe">
       {/* Header */}
       <div className="flex items-center justify-between bg-gradient-to-r from-emerald-700 via-teal-700 to-emerald-800 p-4 text-white">
         <div className="flex items-center gap-3">

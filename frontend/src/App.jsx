@@ -21,6 +21,7 @@ import defaultProducts from "./data/products";
 import { categories } from "./data/categories";
 import { soundEffects } from "./services/soundEffects";
 import { cloudOrdersService } from "./services/cloudOrders";
+import { cloudProductsService } from "./services/cloudProducts";
 import {
   productsApi,
   ordersApi,
@@ -85,6 +86,35 @@ function App() {
       .catch(() => {
         console.log("[SV CARE] Local clinical resilience mode active with 40+ authentic medicines.");
       });
+  }, []);
+
+  // Real-time Cloud Products multi-device sync
+  useEffect(() => {
+    const unsubCloudProducts = cloudProductsService.subscribe((cloudProducts) => {
+      if (Array.isArray(cloudProducts) && cloudProducts.length > 0) {
+        setProducts((prev) => {
+          const merged = [...prev];
+          cloudProducts.forEach((remote) => {
+            const idx = merged.findIndex(
+              (p) => String(p.id) === String(remote.id) || p.name.toLowerCase() === remote.name.toLowerCase()
+            );
+            if (idx >= 0) {
+              merged[idx] = { ...merged[idx], ...remote };
+            } else {
+              merged.unshift(remote);
+            }
+          });
+          try {
+            localStorage.setItem("svcare_products_catalog_v3", JSON.stringify(merged));
+          } catch {}
+          return merged;
+        });
+      }
+    });
+
+    return () => {
+      if (unsubCloudProducts) unsubCloudProducts();
+    };
   }, []);
 
   // ==========================================
@@ -368,6 +398,7 @@ function App() {
   // 8. INVENTORY STOCK ADJUSTMENT HANDLERS
   // ==========================================
   const handleAdjustStock = (productId, adjustmentType, quantity, reason) => {
+    let calculatedStock = 0;
     setProducts((prev) =>
       prev.map((p) => {
         if (p.id === productId) {
@@ -375,12 +406,15 @@ function App() {
           if (adjustmentType === "ADD") nextStock += quantity;
           else if (adjustmentType === "DEDUCT") nextStock = Math.max(0, nextStock - quantity);
           else if (adjustmentType === "SET") nextStock = quantity;
+          calculatedStock = nextStock;
           return { ...p, stock: nextStock };
         }
         return p;
       })
     );
     showToast(`Inventory updated for product ID #${productId}`);
+
+    cloudProductsService.adjustStock(productId, calculatedStock).catch(() => {});
 
     inventoryApi
       .adjust(productId, adjustmentType, quantity, reason)
@@ -393,6 +427,8 @@ function App() {
   const handleAddProduct = (newProduct) => {
     setProducts((prev) => [newProduct, ...prev]);
     showToast(`Medicine '${newProduct.name}' added successfully!`);
+
+    cloudProductsService.saveProduct(newProduct).catch(() => {});
 
     productsApi
       .create({
@@ -420,6 +456,8 @@ function App() {
     );
     showToast(`Medicine updated successfully!`);
 
+    cloudProductsService.updateProduct(id, updatedFields).catch(() => {});
+
     const numId = typeof id === "number" ? id : null;
     if (numId) {
       productsApi.update(numId, updatedFields).catch(() => {});
@@ -431,6 +469,8 @@ function App() {
       prev.map((p) => (p.id === id ? { ...p, is_active: false } : p))
     );
     showToast(`Medicine deactivated from customer catalog`);
+
+    cloudProductsService.updateProduct(id, { is_active: false }).catch(() => {});
 
     const numId = typeof id === "number" ? id : null;
     if (numId) {
@@ -1020,7 +1060,7 @@ function App() {
 
       {/* Floating Global Toast Notification */}
       {toastMessage && (
-        <div className="fixed top-24 right-6 z-50 rounded-2xl bg-slate-900/95 px-5 py-3 text-xs font-bold text-white shadow-2xl backdrop-blur-md border border-emerald-500/40 animate-bounce flex items-center gap-2">
+        <div className="fixed top-20 sm:top-24 inset-x-3 sm:inset-x-auto sm:right-6 z-50 rounded-2xl bg-slate-900/95 px-4 sm:px-5 py-3 text-xs font-bold text-white shadow-2xl backdrop-blur-md border border-emerald-500/40 flex items-center justify-center gap-2">
           <span className="text-emerald-400 font-extrabold">✓</span> {toastMessage}
         </div>
       )}

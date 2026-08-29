@@ -115,28 +115,29 @@ function ProductCard({
           </div>
         </div>
 
-        {/* Action Button: Eye Preview + Compact Add/Stepper */}
+        {/* Action Button: Eye Preview + Compact Add/Stepper with comfortable touch targets */}
         <div className="mt-auto pt-2 flex items-center gap-1.5">
           <button
             type="button"
             onClick={() => onOpenDetails && onOpenDetails(product)}
-            className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-[11px] text-slate-600 hover:border-emerald-500 hover:bg-emerald-50 transition shrink-0"
+            className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-600 hover:border-emerald-500 hover:bg-emerald-50 active:scale-90 transition shrink-0 cursor-pointer"
             title="Quick View"
           >
             👁️
           </button>
 
-          {/* Stepper or ADD */}
+          {/* Stepper or ADD (Touch-optimized) */}
           {isInCart ? (
-            <div className="flex-1 flex items-center justify-between rounded-full bg-emerald-600 border border-emerald-700 p-0.5 text-white shadow-xs">
+            <div className="flex-1 flex items-center justify-between rounded-full bg-emerald-600 border border-emerald-700 p-0.5 sm:p-1 text-white shadow-xs">
               <button
                 type="button"
                 onClick={() => onDecrease && onDecrease(product.id)}
-                className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-700 hover:bg-emerald-800 text-xs font-black text-white active:scale-90 transition"
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-700 hover:bg-emerald-800 text-sm font-black text-white active:scale-90 transition cursor-pointer"
+                aria-label="Decrease quantity"
               >
                 −
               </button>
-              <span className="text-[11px] font-black px-1.5 text-white">{cartQuantity}</span>
+              <span className="text-xs font-black px-1.5 text-white">{cartQuantity}</span>
               <button
                 type="button"
                 onClick={() => {
@@ -145,7 +146,8 @@ function ProductCard({
                   }
                 }}
                 disabled={cartQuantity >= stock}
-                className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-700 hover:bg-emerald-800 text-xs font-black text-white active:scale-90 transition disabled:opacity-50"
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-700 hover:bg-emerald-800 text-sm font-black text-white active:scale-90 transition disabled:opacity-50 cursor-pointer"
+                aria-label="Increase quantity"
               >
                 +
               </button>
@@ -155,14 +157,14 @@ function ProductCard({
               type="button"
               onClick={() => onAddToCart(product)}
               disabled={isOutOfStock}
-              className={`flex-1 flex items-center justify-center gap-1.5 rounded-full py-1.5 px-3 text-xs font-bold text-white shadow-xs border transition-all duration-150 active:scale-95 ${
+              className={`flex-1 flex items-center justify-center gap-1.5 rounded-full py-2 px-2.5 sm:px-3 text-xs font-bold text-white shadow-xs border transition-all duration-150 active:scale-95 cursor-pointer ${
                 isOutOfStock
                   ? "bg-slate-200 border-slate-300 text-slate-400 cursor-not-allowed text-[10px]"
                   : "bg-emerald-600 hover:bg-emerald-700 border-emerald-600 hover:border-emerald-700 hover:shadow-sm"
               }`}
             >
               <span className="text-xs">🛒</span>
-              <span>{isOutOfStock ? "Unavailable" : "Add to cart"}</span>
+              <span className="truncate">{isOutOfStock ? "Out of Stock" : "Add"}</span>
             </button>
           )}
         </div>
