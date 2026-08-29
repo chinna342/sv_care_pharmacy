@@ -27,6 +27,14 @@
       "destination": "/api/orders"
     },
     {
+      "source": "/api/products/:path*",
+      "destination": "/api/products"
+    },
+    {
+      "source": "/products/:path*",
+      "destination": "/api/products"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
